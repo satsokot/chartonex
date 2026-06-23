@@ -1,0 +1,267 @@
+{
+  "version": "0.4",
+  "title": "CafeBTC - کافه بیتکوین",
+  "type": "page",
+  "content": [
+    {
+      "id": "sec_hero",
+      "elType": "section",
+      "isInner": false,
+      "settings": {
+        "layout": "full_width",
+        "stretch_section": "section-stretched",
+        "height": "100vh",
+        "background_background": "classic",
+        "background_color": "#090909",
+        "padding": {"unit": "px", "top": "0", "right": "0", "bottom": "0", "left": "0", "isLinked": false},
+        "overflow": "hidden"
+      },
+      "elements": [
+        {
+          "id": "col_hero",
+          "elType": "column",
+          "isInner": false,
+          "settings": {
+            "_column_size": 100,
+            "content_position": "middle"
+          },
+          "elements": [
+            {
+              "id": "wgt_hero_html",
+              "elType": "widget",
+              "widgetType": "html",
+              "settings": {
+                "html": "<style>@import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;700;900&display=swap');.cafebtc-hero{position:relative;min-height:100vh;background:#090909;display:flex;align-items:center;overflow:hidden;font-family:'Vazirmatn',Tahoma,Arial,sans-serif;direction:rtl;}.cafebtc-hero *{box-sizing:border-box;}.hex-bg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;}.orange-glow-left{position:absolute;left:-100px;top:50%;transform:translateY(-50%);width:700px;height:700px;background:radial-gradient(circle,rgba(200,88,8,0.45) 0%,transparent 65%);pointer-events:none;animation:glowPulse 5s ease-in-out infinite;}.hero-inner{position:relative;z-index:10;width:100%;max-width:1300px;margin:0 auto;padding:60px 40px;display:flex;align-items:center;justify-content:space-between;gap:60px;}.hero-text{flex:1;text-align:right;}.hero-visual{flex:0 0 360px;display:flex;flex-direction:column;align-items:center;gap:24px;}.price-badge{display:inline-flex;align-items:center;gap:10px;background:rgba(247,148,29,0.08);border:1px solid rgba(247,148,29,0.25);border-radius:50px;padding:8px 20px;margin-bottom:20px;}.price-badge-symbol{color:#f7941d;font-size:22px;font-weight:900;}.price-badge-value{color:#f7941d;font-size:18px;font-weight:700;font-variant-numeric:tabular-nums;}.price-badge-change{color:#26a65b;font-size:13px;font-weight:600;}.mini-chart{display:flex;align-items:flex-end;gap:3px;height:32px;margin-right:8px;}.candle{width:7px;border-radius:2px;}.candle.g{background:#26a65b;}.candle.r{background:#e74c3c;}.hero-title{font-size:clamp(38px,5vw,68px);font-weight:900;color:#fff;line-height:1.15;margin:0 0 12px;letter-spacing:-1px;}.hero-title span{color:#f7941d;}.hero-subtitle{font-size:clamp(16px,2.2vw,24px);color:#aaa;font-weight:300;margin:0 0 20px;}.hero-desc{font-size:15px;color:#666;line-height:1.9;margin:0 0 36px;max-width:520px;}.hero-btns{display:flex;gap:14px;flex-wrap:wrap;align-items:center;}.btn-primary{display:inline-flex;align-items:center;gap:8px;background:#f7941d;color:#000;padding:14px 32px;border-radius:50px;font-size:15px;font-weight:700;text-decoration:none;transition:all 0.3s;font-family:inherit;}.btn-primary:hover{background:#e8850e;transform:translateY(-2px);box-shadow:0 8px 30px rgba(247,148,29,0.4);}.btn-outline{display:inline-flex;align-items:center;gap:8px;background:transparent;color:#f7941d;padding:14px 32px;border-radius:50px;font-size:15px;font-weight:700;text-decoration:none;border:2px solid #f7941d;transition:all 0.3s;font-family:inherit;}.btn-outline:hover{background:rgba(247,148,29,0.1);transform:translateY(-2px);}.btc-icon-wrap{position:relative;display:flex;align-items:center;justify-content:center;width:200px;height:200px;}.btc-circle{width:120px;height:120px;background:linear-gradient(135deg,#f7941d,#c85808);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:68px;color:#fff;font-weight:900;line-height:1;box-shadow:0 0 80px rgba(247,148,29,0.55);animation:floatBTC 7s ease-in-out infinite;z-index:2;}.orbit1{position:absolute;inset:0;border:1.5px dashed rgba(247,148,29,0.25);border-radius:50%;animation:orbit 12s linear infinite;}.orbit2{position:absolute;width:170px;height:170px;border:1px dashed rgba(247,148,29,0.12);border-radius:50%;animation:orbit 20s linear infinite reverse;}.phone-mockup{width:185px;background:#181818;border:2px solid #2a2a2a;border-radius:32px;padding:14px;box-shadow:0 30px 80px rgba(0,0,0,0.9),0 0 0 1px rgba(255,255,255,0.03);}.phone-inner{background:#0b0b16;border-radius:20px;padding:18px 14px;text-align:center;}.phone-label{font-size:10px;color:#444;margin-bottom:8px;letter-spacing:1px;}.phone-price{font-size:22px;font-weight:700;color:#fff;margin-bottom:4px;font-variant-numeric:tabular-nums;}.phone-change{font-size:12px;color:#26a65b;margin-bottom:14px;}.phone-chart{display:flex;align-items:flex-end;gap:3px;height:55px;justify-content:center;padding:0 4px;}.site-label{text-align:center;}.site-name{font-size:15px;color:#f7941d;font-weight:700;margin-bottom:2px;}.site-url{font-size:11px;color:#444;}.scroll-hint{position:absolute;bottom:28px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:6px;animation:scrollBounce 2.5s ease-in-out infinite;}.scroll-line{width:1.5px;height:36px;background:linear-gradient(to bottom,#f7941d,transparent);}.scroll-dot{width:6px;height:6px;border:1.5px solid #f7941d;border-radius:50%;}@keyframes glowPulse{0%,100%{opacity:0.8;transform:translateY(-50%) scale(1);}50%{opacity:1;transform:translateY(-50%) scale(1.08);}}@keyframes floatBTC{0%,100%{transform:translateY(0) rotate(-3deg);}40%{transform:translateY(-18px) rotate(3deg);}75%{transform:translateY(-8px) rotate(-1deg);}}@keyframes orbit{from{transform:rotate(0deg);}to{transform:rotate(360deg);}}@keyframes scrollBounce{0%,100%{transform:translateX(-50%) translateY(0);}50%{transform:translateX(-50%) translateY(10px);}}@media(max-width:900px){.hero-inner{flex-direction:column;text-align:center;padding:80px 20px 40px;}.hero-text{text-align:center;}.hero-btns{justify-content:center;}}</style><div class='cafebtc-hero'><svg class='hex-bg' viewBox='0 0 1400 800' xmlns='http://www.w3.org/2000/svg' preserveAspectRatio='xMidYMid slice'><defs><radialGradient id='rg' cx='30%' cy='50%'><stop offset='0%' stop-color='#c85808' stop-opacity='0.5'/><stop offset='100%' stop-color='#090909' stop-opacity='0'/></radialGradient></defs><rect width='1400' height='800' fill='#090909'/><ellipse cx='380' cy='400' rx='400' ry='300' fill='url(#rg)'><animate attributeName='rx' values='400;450;400' dur='5s' repeatCount='indefinite'/><animate attributeName='ry' values='300;340;300' dur='5s' repeatCount='indefinite'/></ellipse><g stroke='#f7941d' stroke-width='1' fill='none'><polygon points='60,40 100,16 140,40 140,88 100,112 60,88'><animate attributeName='stroke-opacity' values='0.08;0.45;0.08' dur='3.2s' repeatCount='indefinite'/></polygon><polygon points='140,40 180,16 220,40 220,88 180,112 140,88'><animate attributeName='stroke-opacity' values='0.15;0.6;0.15' dur='4s' begin='0.5s' repeatCount='indefinite'/></polygon><polygon points='220,40 260,16 300,40 300,88 260,112 220,88'><animate attributeName='stroke-opacity' values='0.05;0.35;0.05' dur='3.5s' begin='1s' repeatCount='indefinite'/></polygon><polygon points='300,40 340,16 380,40 380,88 340,112 300,88'><animate attributeName='stroke-opacity' values='0.12;0.5;0.12' dur='4.5s' begin='0.3s' repeatCount='indefinite'/></polygon><polygon points='20,112 60,88 100,112 100,160 60,184 20,160'><animate attributeName='stroke-opacity' values='0.1;0.55;0.1' dur='2.8s' begin='0.8s' repeatCount='indefinite'/></polygon><polygon points='100,112 140,88 180,112 180,160 140,184 100,160'><animate attributeName='stroke-opacity' values='0.2;0.7;0.2' dur='3.8s' begin='0.2s' repeatCount='indefinite'/></polygon><polygon points='180,112 220,88 260,112 260,160 220,184 180,160'><animate attributeName='stroke-opacity' values='0.08;0.4;0.08' dur='5s' begin='1.2s' repeatCount='indefinite'/></polygon><polygon points='260,112 300,88 340,112 340,160 300,184 260,160'><animate attributeName='stroke-opacity' values='0.18;0.65;0.18' dur='3.1s' begin='0.6s' repeatCount='indefinite'/></polygon><polygon points='340,112 380,88 420,112 420,160 380,184 340,160'><animate attributeName='stroke-opacity' values='0.05;0.3;0.05' dur='4.2s' begin='1.5s' repeatCount='indefinite'/></polygon><polygon points='60,184 100,160 140,184 140,232 100,256 60,232'><animate attributeName='stroke-opacity' values='0.25;0.75;0.25' dur='2.6s' begin='0.4s' repeatCount='indefinite'/></polygon><polygon points='140,184 180,160 220,184 220,232 180,256 140,232'><animate attributeName='stroke-opacity' values='0.1;0.45;0.1' dur='3.6s' begin='1.1s' repeatCount='indefinite'/></polygon><polygon points='220,184 260,160 300,184 300,232 260,256 220,232'><animate attributeName='stroke-opacity' values='0.3;0.8;0.3' dur='3.3s' begin='0.7s' repeatCount='indefinite'/></polygon><polygon points='300,184 340,160 380,184 380,232 340,256 300,232'><animate attributeName='stroke-opacity' values='0.08;0.38;0.08' dur='4.8s' begin='0.1s' repeatCount='indefinite'/></polygon><polygon points='20,256 60,232 100,256 100,304 60,328 20,304'><animate attributeName='stroke-opacity' values='0.15;0.6;0.15' dur='3.7s' begin='0.9s' repeatCount='indefinite'/></polygon><polygon points='100,256 140,232 180,256 180,304 140,328 100,304'><animate attributeName='stroke-opacity' values='0.22;0.68;0.22' dur='2.9s' begin='0.3s' repeatCount='indefinite'/></polygon><polygon points='180,256 220,232 260,256 260,304 220,328 180,304'><animate attributeName='stroke-opacity' values='0.06;0.42;0.06' dur='4.4s' begin='1.4s' repeatCount='indefinite'/></polygon><polygon points='260,256 300,232 340,256 340,304 300,328 260,304'><animate attributeName='stroke-opacity' values='0.18;0.62;0.18' dur='3.4s' begin='0.5s' repeatCount='indefinite'/></polygon><polygon points='340,256 380,232 420,256 420,304 380,328 340,304'><animate attributeName='stroke-opacity' values='0.1;0.5;0.1' dur='5.2s' begin='0.8s' repeatCount='indefinite'/></polygon><polygon points='60,328 100,304 140,328 140,376 100,400 60,376'><animate attributeName='stroke-opacity' values='0.28;0.78;0.28' dur='3s' begin='0.6s' repeatCount='indefinite'/></polygon><polygon points='140,328 180,304 220,328 220,376 180,400 140,376'><animate attributeName='stroke-opacity' values='0.08;0.4;0.08' dur='4.1s' begin='1.3s' repeatCount='indefinite'/></polygon><polygon points='220,328 260,304 300,328 300,376 260,400 220,376'><animate attributeName='stroke-opacity' values='0.2;0.7;0.2' dur='3.2s' begin='0.2s' repeatCount='indefinite'/></polygon><polygon points='300,328 340,304 380,328 380,376 340,400 300,376'><animate attributeName='stroke-opacity' values='0.12;0.52;0.12' dur='4.6s' begin='1s' repeatCount='indefinite'/></polygon></g></svg><div class='hero-inner'><div class='hero-text'><div class='price-badge'><span class='price-badge-symbol'>&#8383;</span><span class='price-badge-value' id='cbPriceVal'>$67,842</span><span class='price-badge-change'>+2.4% &#9650;</span><div class='mini-chart'><div class='candle g' style='height:18px'></div><div class='candle r' style='height:13px'></div><div class='candle g' style='height:26px'></div><div class='candle r' style='height:16px'></div><div class='candle g' style='height:32px'></div><div class='candle g' style='height:28px'></div></div></div><h1 class='hero-title'>کافه <span>بیتکوین</span></h1><p class='hero-subtitle'>اولین کافه با پرداخت رمزارز در ایران</p><p class='hero-desc'>در کافه بیتکوین هر فنجان قهوه یک تجربه متفاوت است. ما پیشرو در پذیرش پرداخت با بیتکوین و رمزارزهای دیجیتال در ایران هستیم. بیایید آینده مالی را با یک قهوه خوب تجربه کنید.</p><div class='hero-btns'><a href='#menu' class='btn-primary'>مشاهده منو</a><a href='#about' class='btn-outline'>بیشتر بدانید</a></div></div><div class='hero-visual'><div class='btc-icon-wrap'><div class='orbit1'></div><div class='orbit2'></div><div class='btc-circle'>&#8383;</div></div><div class='phone-mockup'><div class='phone-inner'><div class='phone-label'>BTC / USDT</div><div class='phone-price'>$67,842</div><div class='phone-change'>+2.4% &#9650;</div><div class='phone-chart'><div class='candle g' style='height:22px'></div><div class='candle r' style='height:16px'></div><div class='candle g' style='height:34px'></div><div class='candle r' style='height:19px'></div><div class='candle g' style='height:44px'></div><div class='candle g' style='height:38px'></div><div class='candle r' style='height:14px'></div><div class='candle g' style='height:48px'></div><div class='candle r' style='height:24px'></div><div class='candle g' style='height:52px'></div></div></div></div><div class='site-label'><div class='site-name'>کافه بیتکوین</div><div class='site-url'>cafebtc.ir</div></div></div></div><div class='scroll-hint'><div class='scroll-line'></div><div class='scroll-dot'></div></div></div>"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sec_stats",
+      "elType": "section",
+      "isInner": false,
+      "settings": {
+        "layout": "full_width",
+        "stretch_section": "section-stretched",
+        "background_background": "classic",
+        "background_color": "#0f0f0f",
+        "border_top_width": {"unit": "px", "size": 1},
+        "border_bottom_width": {"unit": "px", "size": 1},
+        "border_color": "rgba(247,148,29,0.12)",
+        "padding": {"unit": "px", "top": "20", "right": "40", "bottom": "20", "left": "40", "isLinked": false}
+      },
+      "elements": [
+        {
+          "id": "col_stats",
+          "elType": "column",
+          "isInner": false,
+          "settings": {"_column_size": 100},
+          "elements": [
+            {
+              "id": "wgt_stats",
+              "elType": "widget",
+              "widgetType": "html",
+              "settings": {
+                "html": "<style>.cafebtc-ticker{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;max-width:1300px;margin:0 auto;padding:0 20px;font-family:'Vazirmatn',Tahoma,Arial,sans-serif;direction:rtl;}.ticker-item{display:flex;align-items:center;gap:10px;}.ticker-icon{width:36px;height:36px;background:rgba(247,148,29,0.1);border:1px solid rgba(247,148,29,0.2);border-radius:50%;display:flex;align-items:center;justify-content:center;color:#f7941d;font-size:16px;font-weight:900;}.ticker-info{display:flex;flex-direction:column;}.ticker-label{font-size:10px;color:#555;letter-spacing:0.5px;text-transform:uppercase;}.ticker-value{font-size:15px;font-weight:700;color:#fff;font-variant-numeric:tabular-nums;}.ticker-change{font-size:11px;}.ticker-change.up{color:#26a65b;}.ticker-change.dn{color:#e74c3c;}.ticker-divider{width:1px;height:36px;background:rgba(255,255,255,0.06);}@media(max-width:768px){.ticker-divider{display:none;}.cafebtc-ticker{justify-content:center;}}</style><div class='cafebtc-ticker'><div class='ticker-item'><div class='ticker-icon'>&#8383;</div><div class='ticker-info'><span class='ticker-label'>بیتکوین</span><span class='ticker-value'>$67,842</span><span class='ticker-change up'>+2.4%</span></div></div><div class='ticker-divider'></div><div class='ticker-item'><div class='ticker-icon' style='color:#8b5cf6;background:rgba(139,92,246,0.1);border-color:rgba(139,92,246,0.2);'>&#9830;</div><div class='ticker-info'><span class='ticker-label'>اتریوم</span><span class='ticker-value'>$3,218</span><span class='ticker-change up'>+1.8%</span></div></div><div class='ticker-divider'></div><div class='ticker-item'><div class='ticker-icon' style='color:#22d3ee;background:rgba(34,211,238,0.1);border-color:rgba(34,211,238,0.2);'>&#9670;</div><div class='ticker-info'><span class='ticker-label'>کل بازار</span><span class='ticker-value'>$2.4T</span><span class='ticker-change up'>+1.2%</span></div></div><div class='ticker-divider'></div><div class='ticker-item'><div class='ticker-icon' style='color:#f87171;background:rgba(248,113,113,0.1);border-color:rgba(248,113,113,0.2);'>&#9651;</div><div class='ticker-info'><span class='ticker-label'>حجم ۲۴ ساعت</span><span class='ticker-value'>$98.3B</span><span class='ticker-change dn'>-3.1%</span></div></div><div class='ticker-divider'></div><div class='ticker-item'><div class='ticker-icon' style='color:#34d399;background:rgba(52,211,153,0.1);border-color:rgba(52,211,153,0.2);'>&#9679;</div><div class='ticker-info'><span class='ticker-label'>دامیننس BTC</span><span class='ticker-value'>54.2%</span><span class='ticker-change up'>+0.3%</span></div></div></div>"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sec_features",
+      "elType": "section",
+      "isInner": false,
+      "settings": {
+        "layout": "full_width",
+        "stretch_section": "section-stretched",
+        "background_background": "classic",
+        "background_color": "#090909",
+        "padding": {"unit": "px", "top": "90", "right": "40", "bottom": "90", "left": "40", "isLinked": false}
+      },
+      "elements": [
+        {
+          "id": "col_feat_wrap",
+          "elType": "column",
+          "isInner": false,
+          "settings": {"_column_size": 100},
+          "elements": [
+            {
+              "id": "wgt_feat_title",
+              "elType": "widget",
+              "widgetType": "html",
+              "settings": {
+                "html": "<style>.section-header{text-align:center;margin-bottom:60px;font-family:'Vazirmatn',Tahoma,Arial,sans-serif;direction:rtl;}.section-tag{display:inline-flex;align-items:center;gap:8px;background:rgba(247,148,29,0.08);border:1px solid rgba(247,148,29,0.2);border-radius:50px;padding:6px 18px;font-size:13px;color:#f7941d;font-weight:600;margin-bottom:16px;}.section-title{font-size:clamp(28px,4vw,44px);font-weight:900;color:#fff;margin:0 0 14px;}.section-title span{color:#f7941d;}.section-desc{font-size:15px;color:#666;max-width:540px;margin:0 auto;line-height:1.8;}.feat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:24px;max-width:1100px;margin:0 auto;}.feat-card{background:#0f0f0f;border:1px solid rgba(255,255,255,0.06);border-radius:20px;padding:36px 28px;transition:all 0.4s;position:relative;overflow:hidden;}.feat-card::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(247,148,29,0.04),transparent);opacity:0;transition:opacity 0.4s;}.feat-card:hover{border-color:rgba(247,148,29,0.3);transform:translateY(-6px);box-shadow:0 20px 60px rgba(0,0,0,0.6);}.feat-card:hover::before{opacity:1;}.feat-icon{width:60px;height:60px;border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:28px;margin-bottom:20px;}.feat-icon.orange{background:rgba(247,148,29,0.12);}.feat-icon.green{background:rgba(38,166,91,0.12);}.feat-icon.purple{background:rgba(139,92,246,0.12);}.feat-icon.blue{background:rgba(34,211,238,0.12);}.feat-name{font-size:20px;font-weight:700;color:#fff;margin-bottom:10px;direction:rtl;text-align:right;}.feat-text{font-size:14px;color:#666;line-height:1.8;direction:rtl;text-align:right;}.feat-link{display:inline-flex;align-items:center;gap:6px;color:#f7941d;font-size:13px;font-weight:600;text-decoration:none;margin-top:16px;transition:gap 0.3s;direction:rtl;}.feat-link:hover{gap:10px;}</style><div class='section-header'><div class='section-tag'>&#9670; خدمات ما</div><h2 class='section-title'>چرا <span>کافه بیتکوین</span>؟</h2><p class='section-desc'>ما ترکیبی منحصربه‌فرد از فرهنگ قهوه و دنیای رمزارز را ارائه می‌دهیم</p></div><div class='feat-grid'><div class='feat-card'><div class='feat-icon orange'>&#9749;</div><div class='feat-name'>قهوه اسپشیالتی</div><p class='feat-text'>منوی متنوع قهوه اسپشیالتی از بهترین دانه‌های تخصصی دنیا، توسط باریستاهای حرفه‌ای آماده می‌شود</p><a href='#menu' class='feat-link'>مشاهده منو &#8592;</a></div><div class='feat-card'><div class='feat-icon orange'>&#8383;</div><div class='feat-name'>پرداخت با بیتکوین</div><p class='feat-text'>اولین کافه‌ای که پرداخت با بیتکوین، لایتنینگ نتورک و سایر رمزارزهای معتبر را می‌پذیرد</p><a href='#pay' class='feat-link'>نحوه پرداخت &#8592;</a></div><div class='feat-card'><div class='feat-icon green'>&#128200;</div><div class='feat-name'>نمایشگر قیمت لایو</div><p class='feat-text'>نمایشگرهای لایو قیمت بیتکوین و رمزارزها در فضای کافه، همیشه به‌روز و در دسترس شما</p><a href='#price' class='feat-link'>قیمت‌های لحظه‌ای &#8592;</a></div><div class='feat-card'><div class='feat-icon purple'>&#127979;</div><div class='feat-name'>کلاس‌های آموزشی</div><p class='feat-text'>جلسات منظم آموزش بلاکچین، بیتکوین و سرمایه‌گذاری در رمزارز برای علاقه‌مندان</p><a href='#edu' class='feat-link'>برنامه کلاس‌ها &#8592;</a></div><div class='feat-card'><div class='feat-icon blue'>&#128101;</div><div class='feat-name'>انجمن کریپتو</div><p class='feat-text'>محلی برای تجمع علاقه‌مندان به رمزارز، ارتباط با سرمایه‌گذاران و تبادل تجربه</p><a href='#community' class='feat-link'>ورود به انجمن &#8592;</a></div><div class='feat-card'><div class='feat-icon orange'>&#127873;</div><div class='feat-name'>کارت هدیه BTC</div><p class='feat-text'>کارت‌های هدیه با پشتوانه بیتکوین برای عزیزانتان، هدیه‌ای که ارزشش با زمان بیشتر می‌شود</p><a href='#gift' class='feat-link'>خرید کارت هدیه &#8592;</a></div></div>"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sec_app",
+      "elType": "section",
+      "isInner": false,
+      "settings": {
+        "layout": "full_width",
+        "stretch_section": "section-stretched",
+        "background_background": "classic",
+        "background_color": "#080808",
+        "padding": {"unit": "px", "top": "90", "right": "40", "bottom": "90", "left": "40", "isLinked": false}
+      },
+      "elements": [
+        {
+          "id": "col_app_wrap",
+          "elType": "column",
+          "isInner": false,
+          "settings": {"_column_size": 100},
+          "elements": [
+            {
+              "id": "wgt_app",
+              "elType": "widget",
+              "widgetType": "html",
+              "settings": {
+                "html": "<style>.app-section{display:flex;align-items:center;justify-content:space-between;gap:60px;max-width:1200px;margin:0 auto;font-family:'Vazirmatn',Tahoma,Arial,sans-serif;direction:rtl;flex-wrap:wrap;}.app-phones{flex:0 0 auto;display:flex;align-items:flex-end;gap:-20px;position:relative;}.app-phone-main{width:200px;background:#181818;border:2px solid #2a2a2a;border-radius:36px;padding:16px;box-shadow:0 40px 100px rgba(0,0,0,0.9),0 0 0 1px rgba(255,255,255,0.03);z-index:2;}.app-phone-back{width:180px;background:#141414;border:2px solid #222;border-radius:36px;padding:14px;box-shadow:0 30px 80px rgba(0,0,0,0.8);position:absolute;right:-50px;bottom:-20px;z-index:1;opacity:0.7;}.phone-screen{background:#0b0b16;border-radius:24px;padding:20px 16px;}.phone-header-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;}.phone-pair{font-size:13px;font-weight:700;color:#fff;}.phone-tag{font-size:10px;color:#26a65b;background:rgba(38,166,91,0.15);border-radius:4px;padding:2px 6px;}.phone-big-price{font-size:28px;font-weight:900;color:#fff;margin-bottom:4px;font-variant-numeric:tabular-nums;}.phone-sub-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;}.phone-pct{font-size:13px;color:#26a65b;font-weight:600;}.phone-vol{font-size:10px;color:#444;}.candles-wrap{display:flex;align-items:flex-end;gap:4px;height:70px;}.cb{border-radius:2px;}.cbg{background:#26a65b;}.cbr{background:#e74c3c;}.phone-btns{display:flex;gap:8px;margin-top:16px;}.pbtn{flex:1;padding:10px;border-radius:12px;font-size:12px;font-weight:700;text-align:center;font-family:'Vazirmatn',Tahoma,Arial,sans-serif;}.pbtn.buy{background:#26a65b;color:#fff;}.pbtn.sell{background:#e74c3c;color:#fff;}.app-text{flex:1;min-width:280px;text-align:right;}.app-tag{display:inline-flex;align-items:center;gap:8px;background:rgba(247,148,29,0.08);border:1px solid rgba(247,148,29,0.2);border-radius:50px;padding:6px 18px;font-size:13px;color:#f7941d;font-weight:600;margin-bottom:20px;}.app-title{font-size:clamp(26px,3.5vw,44px);font-weight:900;color:#fff;line-height:1.2;margin-bottom:16px;}.app-title span{color:#f7941d;}.app-desc{font-size:15px;color:#666;line-height:1.9;margin-bottom:32px;}.app-stats{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:32px;}.stat-box{background:#0f0f0f;border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:18px;}.stat-val{font-size:24px;font-weight:900;color:#f7941d;margin-bottom:4px;}.stat-lbl{font-size:12px;color:#555;}@media(max-width:900px){.app-section{flex-direction:column;text-align:center;}.app-text{text-align:center;}.app-stats{max-width:400px;margin-left:auto;margin-right:auto;}}</style><div class='app-section'><div class='app-phones'><div class='app-phone-back'><div class='phone-screen'><div style='font-size:11px;color:#555;margin-bottom:8px;direction:rtl;'>ETH/USDT</div><div style='font-size:20px;font-weight:700;color:#fff;'>$3,218</div><div style='font-size:11px;color:#26a65b;'>+1.8%</div></div></div><div class='app-phone-main'><div class='phone-screen'><div class='phone-header-row'><span class='phone-pair'>BTC/USDT</span><span class='phone-tag'>+2.4%</span></div><div class='phone-big-price'>$67,842</div><div class='phone-sub-row'><span class='phone-pct'>+$1,584 &#9650;</span><span class='phone-vol'>Vol: 98.3B</span></div><div class='candles-wrap'><div class='cb cbg' style='width:9px;height:28px'></div><div class='cb cbr' style='width:9px;height:20px'></div><div class='cb cbg' style='width:9px;height:42px'></div><div class='cb cbr' style='width:9px;height:24px'></div><div class='cb cbg' style='width:9px;height:55px'></div><div class='cb cbg' style='width:9px;height:48px'></div><div class='cb cbr' style='width:9px;height:18px'></div><div class='cb cbg' style='width:9px;height:62px'></div><div class='cb cbr' style='width:9px;height:30px'></div><div class='cb cbg' style='width:9px;height:68px'></div></div><div class='phone-btns'><div class='pbtn buy'>خرید</div><div class='pbtn sell'>فروش</div></div></div></div></div><div class='app-text'><div class='app-tag'>&#128241; اپلیکیشن</div><h2 class='app-title'>قیمت <span>لحظه‌ای</span> در کافه</h2><p class='app-desc'>در کافه بیتکوین، نمایشگرهای دیجیتال در سراسر فضا، قیمت لحظه‌ای BTC و سایر رمزارزها را نشان می‌دهند. همچنین با اسکن QR کد، می‌توانید فاکتور خود را مستقیماً با بیتکوین یا لایتنینگ پرداخت کنید.</p><div class='app-stats'><div class='stat-box'><div class='stat-val'>+۵۰۰</div><div class='stat-lbl'>مشتری راضی</div></div><div class='stat-box'><div class='stat-val'>۳</div><div class='stat-lbl'>سال فعالیت</div></div><div class='stat-box'><div class='stat-val'>۱۲</div><div class='stat-lbl'>نوع رمزارز</div></div><div class='stat-box'><div class='stat-val'>۰٪</div><div class='stat-lbl'>کارمزد اضافه</div></div></div><a href='#contact' style='display:inline-flex;align-items:center;gap:8px;background:#f7941d;color:#000;padding:14px 32px;border-radius:50px;font-size:15px;font-weight:700;text-decoration:none;font-family:inherit;'>بازدید از کافه &#8592;</a></div></div>"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sec_menu",
+      "elType": "section",
+      "isInner": false,
+      "settings": {
+        "layout": "full_width",
+        "stretch_section": "section-stretched",
+        "background_background": "classic",
+        "background_color": "#090909",
+        "padding": {"unit": "px", "top": "90", "right": "40", "bottom": "90", "left": "40", "isLinked": false}
+      },
+      "elements": [
+        {
+          "id": "col_menu_wrap",
+          "elType": "column",
+          "isInner": false,
+          "settings": {"_column_size": 100},
+          "elements": [
+            {
+              "id": "wgt_menu",
+              "elType": "widget",
+              "widgetType": "html",
+              "settings": {
+                "html": "<style id='cafebtc-menu-style'>.menu-section{max-width:1100px;margin:0 auto;font-family:'Vazirmatn',Tahoma,Arial,sans-serif;direction:rtl;}.menu-header{text-align:center;margin-bottom:50px;}.menu-tag{display:inline-flex;align-items:center;gap:8px;background:rgba(247,148,29,0.08);border:1px solid rgba(247,148,29,0.2);border-radius:50px;padding:6px 18px;font-size:13px;color:#f7941d;font-weight:600;margin-bottom:16px;}.menu-title{font-size:clamp(28px,4vw,44px);font-weight:900;color:#fff;margin-bottom:12px;}.menu-title span{color:#f7941d;}.menu-tabs{display:flex;gap:8px;justify-content:center;margin-bottom:40px;flex-wrap:wrap;}.menu-tab{padding:8px 24px;border-radius:50px;font-size:14px;font-weight:600;cursor:pointer;transition:all 0.3s;font-family:inherit;border:1px solid rgba(255,255,255,0.08);background:transparent;color:#888;}.menu-tab.active{background:#f7941d;color:#000;border-color:#f7941d;}.menu-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:20px;}.menu-card{background:#0f0f0f;border:1px solid rgba(255,255,255,0.06);border-radius:18px;padding:24px;display:flex;align-items:center;gap:16px;transition:all 0.3s;}.menu-card:hover{border-color:rgba(247,148,29,0.25);background:#131313;transform:translateY(-3px);}.menu-emoji{font-size:38px;line-height:1;}.menu-info{flex:1;text-align:right;}.menu-item-name{font-size:16px;font-weight:700;color:#fff;margin-bottom:4px;}.menu-item-desc{font-size:12px;color:#555;margin-bottom:10px;line-height:1.6;}.menu-price-row{display:flex;align-items:center;justify-content:space-between;}.menu-price-toman{font-size:14px;font-weight:700;color:#f7941d;}.menu-price-btc{font-size:11px;color:#444;font-family:monospace;}.menu-badge{font-size:10px;background:rgba(38,166,91,0.15);color:#26a65b;border-radius:4px;padding:2px 8px;font-weight:600;}</style><div class='menu-section'><div class='menu-header'><div class='menu-tag'>&#9749; منوی ما</div><h2 class='menu-title'>منوی <span>کافه بیتکوین</span></h2><p style='font-size:15px;color:#666;'>همه آیتم‌ها قابل پرداخت با بیتکوین و لایتنینگ</p></div><div class='menu-tabs'><button class='menu-tab active'>قهوه</button><button class='menu-tab'>نوشیدنی سرد</button><button class='menu-tab'>دسر</button><button class='menu-tab'>اسنک</button></div><div class='menu-grid'><div class='menu-card'><div class='menu-emoji'>&#9749;</div><div class='menu-info'><div class='menu-item-name'>اسپرسو کلاسیک</div><div class='menu-item-desc'>دانه تازه اتیوپی، تک‌دوز</div><div class='menu-price-row'><span class='menu-price-toman'>۴۵,۰۰۰ تومان</span><span class='menu-price-btc'>≈ 660 sats</span></div></div></div><div class='menu-card'><div class='menu-emoji'>&#9830;</div><div class='menu-info'><div class='menu-item-name'>لاته BTC</div><div class='menu-item-desc'>شیر اوت‌میلک، دارچین</div><div class='menu-price-row'><span class='menu-price-toman'>۶۵,۰۰۰ تومان</span><span class='menu-badge'>پرفروش</span></div></div></div><div class='menu-card'><div class='menu-emoji'>&#127279;</div><div class='menu-info'><div class='menu-item-name'>کپوچینو Satoshi</div><div class='menu-item-desc'>فوم شیر مخملی، کاکائو</div><div class='menu-price-row'><span class='menu-price-toman'>۶۰,۰۰۰ تومان</span><span class='menu-price-btc'>≈ 880 sats</span></div></div></div><div class='menu-card'><div class='menu-emoji'>&#9728;</div><div class='menu-info'><div class='menu-item-name'>آمریکانو Blockchain</div><div class='menu-item-desc'>دبل شات، آب داغ</div><div class='menu-price-row'><span class='menu-price-toman'>۵۰,۰۰۰ تومان</span><span class='menu-price-btc'>≈ 735 sats</span></div></div></div><div class='menu-card'><div class='menu-emoji'>&#10024;</div><div class='menu-info'><div class='menu-item-name'>فلت وایت Lightning</div><div class='menu-item-desc'>ریسترتو، میکروفوم</div><div class='menu-price-row'><span class='menu-price-toman'>۷۰,۰۰۰ تومان</span><span class='menu-badge'>جدید</span></div></div></div><div class='menu-card'><div class='menu-emoji'>&#127968;</div><div class='menu-info'><div class='menu-item-name'>کلد برو Halving</div><div class='menu-item-desc'>۲۴ ساعت دم، تلخ و قوی</div><div class='menu-price-row'><span class='menu-price-toman'>۸۰,۰۰۰ تومان</span><span class='menu-price-btc'>≈ 1170 sats</span></div></div></div><div class='menu-card'><div class='menu-emoji'>&#128142;</div><div class='menu-info'><div class='menu-item-name'>ماچا Moon</div><div class='menu-item-desc'>ماچا ژاپنی، شیر بادام</div><div class='menu-price-row'><span class='menu-price-toman'>۷۵,۰۰۰ تومان</span><span class='menu-price-btc'>≈ 1100 sats</span></div></div></div><div class='menu-card'><div class='menu-emoji'>&#127850;</div><div class='menu-info'><div class='menu-item-name'>هات چاکلت Genesis</div><div class='menu-item-desc'>شکلات تلخ ۷۲٪</div><div class='menu-price-row'><span class='menu-price-toman'>۶۸,۰۰۰ تومان</span><span class='menu-price-btc'>≈ 995 sats</span></div></div></div></div></div>"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sec_cta",
+      "elType": "section",
+      "isInner": false,
+      "settings": {
+        "layout": "full_width",
+        "stretch_section": "section-stretched",
+        "background_background": "gradient",
+        "background_gradient_type": "linear",
+        "background_gradient_angle": {"unit": "deg", "size": 135},
+        "background_color": "#c85808",
+        "background_color_b": "#090909",
+        "padding": {"unit": "px", "top": "90", "right": "40", "bottom": "90", "left": "40", "isLinked": false},
+        "border_radius": {"unit": "px", "top": "0", "right": "0", "bottom": "0", "left": "0"}
+      },
+      "elements": [
+        {
+          "id": "col_cta",
+          "elType": "column",
+          "isInner": false,
+          "settings": {"_column_size": 100, "content_position": "middle"},
+          "elements": [
+            {
+              "id": "wgt_cta",
+              "elType": "widget",
+              "widgetType": "html",
+              "settings": {
+                "html": "<style>.cta-box{text-align:center;max-width:700px;margin:0 auto;font-family:'Vazirmatn',Tahoma,Arial,sans-serif;direction:rtl;position:relative;}.cta-btc-bg{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:300px;color:rgba(255,255,255,0.03);font-weight:900;pointer-events:none;line-height:1;}.cta-tag{display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:50px;padding:6px 18px;font-size:13px;color:#fff;font-weight:600;margin-bottom:20px;}.cta-title{font-size:clamp(30px,5vw,52px);font-weight:900;color:#fff;margin-bottom:16px;line-height:1.2;}.cta-desc{font-size:16px;color:rgba(255,255,255,0.75);margin-bottom:36px;line-height:1.8;}.cta-btns{display:flex;gap:16px;justify-content:center;flex-wrap:wrap;}.cta-btn-main{display:inline-flex;align-items:center;gap:8px;background:#fff;color:#c85808;padding:16px 36px;border-radius:50px;font-size:16px;font-weight:700;text-decoration:none;transition:all 0.3s;font-family:inherit;}.cta-btn-main:hover{transform:translateY(-3px);box-shadow:0 12px 40px rgba(0,0,0,0.3);}.cta-btn-out{display:inline-flex;align-items:center;gap:8px;background:transparent;color:#fff;padding:16px 36px;border-radius:50px;font-size:16px;font-weight:700;text-decoration:none;border:2px solid rgba(255,255,255,0.4);transition:all 0.3s;font-family:inherit;}.cta-btn-out:hover{background:rgba(255,255,255,0.1);transform:translateY(-3px);}</style><div class='cta-box'><div class='cta-btc-bg'>&#8383;</div><div class='cta-tag'>&#127381; امروز شروع کنید</div><h2 class='cta-title'>اولین قهوه خود را با بیتکوین بخرید</h2><p class='cta-desc'>به خانواده کافه بیتکوین بپیوندید. فنجانی قهوه، جامعه‌ای از علاقه‌مندان به رمزارز، و تجربه‌ای که فراموش نمی‌کنید.</p><div class='cta-btns'><a href='#contact' class='cta-btn-main'>مکان ما را ببینید</a><a href='#menu' class='cta-btn-out'>مشاهده منو کامل</a></div></div>"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sec_about",
+      "elType": "section",
+      "isInner": false,
+      "settings": {
+        "layout": "full_width",
+        "stretch_section": "section-stretched",
+        "background_background": "classic",
+        "background_color": "#080808",
+        "padding": {"unit": "px", "top": "90", "right": "40", "bottom": "90", "left": "40", "isLinked": false}
+      },
+      "elements": [
+        {
+          "id": "col_about",
+          "elType": "column",
+          "isInner": false,
+          "settings": {"_column_size": 100},
+          "elements": [
+            {
+              "id": "wgt_about",
+              "elType": "widget",
+              "widgetType": "html",
+              "settings": {
+                "html": "<style>.about-section{display:flex;align-items:center;gap:70px;max-width:1100px;margin:0 auto;font-family:'Vazirmatn',Tahoma,Arial,sans-serif;direction:rtl;flex-wrap:wrap;}.about-visual{flex:0 0 420px;position:relative;}.about-card-main{background:#0f0f0f;border:1px solid rgba(247,148,29,0.15);border-radius:24px;padding:32px;}.about-card-tag{font-size:11px;color:#f7941d;letter-spacing:1px;text-transform:uppercase;margin-bottom:12px;}.about-stat-row{display:flex;gap:20px;margin-bottom:24px;}.astat{text-align:center;flex:1;}.astat-val{font-size:28px;font-weight:900;color:#f7941d;}.astat-lbl{font-size:11px;color:#555;margin-top:4px;}.about-timeline{display:flex;flex-direction:column;gap:12px;}.atl-item{display:flex;align-items:flex-start;gap:12px;}.atl-dot{width:8px;height:8px;border-radius:50%;background:#f7941d;margin-top:5px;flex-shrink:0;}.atl-line{display:flex;flex-direction:column;}.atl-year{font-size:11px;color:#f7941d;font-weight:700;margin-bottom:2px;}.atl-text{font-size:13px;color:#666;line-height:1.6;}.about-float{position:absolute;bottom:-20px;left:-20px;background:#0f0f0f;border:1px solid rgba(38,166,91,0.2);border-radius:16px;padding:16px 20px;box-shadow:0 20px 60px rgba(0,0,0,0.8);}.about-float-val{font-size:20px;font-weight:900;color:#26a65b;}.about-float-lbl{font-size:11px;color:#555;}.about-text{flex:1;min-width:280px;text-align:right;}.about-tag{display:inline-flex;align-items:center;gap:8px;background:rgba(247,148,29,0.08);border:1px solid rgba(247,148,29,0.2);border-radius:50px;padding:6px 18px;font-size:13px;color:#f7941d;font-weight:600;margin-bottom:20px;}.about-title{font-size:clamp(26px,3.5vw,42px);font-weight:900;color:#fff;line-height:1.2;margin-bottom:16px;}.about-title span{color:#f7941d;}.about-body{font-size:15px;color:#666;line-height:1.9;margin-bottom:24px;}.about-list{list-style:none;padding:0;margin:0 0 32px;display:flex;flex-direction:column;gap:12px;}.about-list li{display:flex;align-items:flex-start;gap:10px;font-size:14px;color:#aaa;line-height:1.6;}.about-list li::before{content:'&#9670;';color:#f7941d;font-size:10px;margin-top:5px;flex-shrink:0;}@media(max-width:900px){.about-section{flex-direction:column;}.about-visual{flex:0 0 auto;width:100%;}}</style><div class='about-section'><div class='about-visual'><div class='about-card-main'><div class='about-card-tag'>&#8383; کافه بیتکوین</div><div class='about-stat-row'><div class='astat'><div class='astat-val'>۳+</div><div class='astat-lbl'>سال تجربه</div></div><div class='astat'><div class='astat-val'>۵۰۰+</div><div class='astat-lbl'>مشتری</div></div><div class='astat'><div class='astat-val'>۱۲</div><div class='astat-lbl'>رمزارز</div></div></div><div class='about-timeline'><div class='atl-item'><div class='atl-dot'></div><div class='atl-line'><div class='atl-year'>۱۴۰۰</div><div class='atl-text'>تأسیس کافه با پذیرش اولیه بیتکوین</div></div></div><div class='atl-item'><div class='atl-dot'></div><div class='atl-line'><div class='atl-year'>۱۴۰۱</div><div class='atl-text'>اضافه شدن لایتنینگ نتورک و ۱۰ رمزارز جدید</div></div></div><div class='atl-item'><div class='atl-dot'></div><div class='atl-line'><div class='atl-year'>۱۴۰۲</div><div class='atl-text'>راه‌اندازی کلاس‌های آموزشی و انجمن کریپتو</div></div></div><div class='atl-item'><div class='atl-dot'></div><div class='atl-line'><div class='atl-year'>۱۴۰۳</div><div class='atl-text'>بازنگری کامل، منوی اسپشیالتی و اپلیکیشن</div></div></div></div></div><div class='about-float'><div class='about-float-val'>۱۲ رمزارز</div><div class='about-float-lbl'>قابل پرداخت</div></div></div><div class='about-text'><div class='about-tag'>&#128218; داستان ما</div><h2 class='about-title'>اولین کافه <span>بیتکوین</span> ایران</h2><p class='about-body'>کافه بیتکوین در سال ۱۴۰۰ با یک ایده ساده آغاز شد: ترکیب دو چیزی که دوستشان داریم - قهوه خوب و فناوری بلاکچین. ما باور داریم که رمزارزها آینده پول هستند و می‌خواهیم این آینده را امروز تجربه کنید.</p><ul class='about-list'><li>پذیرش بیتکوین، اتریوم، لایتنینگ و ۹ رمزارز دیگر</li><li>نمایشگرهای لایو قیمت در سراسر کافه</li><li>باریستاهای حرفه‌ای با دانه‌های اسپشیالتی</li><li>محیط کاری دوستانه با وای‌فای پرسرعت</li><li>برگزاری رویدادهای هفتگی بلاکچین</li></ul><a href='#contact' style='display:inline-flex;align-items:center;gap:8px;background:transparent;color:#f7941d;padding:14px 32px;border-radius:50px;font-size:15px;font-weight:700;text-decoration:none;border:2px solid #f7941d;font-family:inherit;transition:all 0.3s;'>با ما در تماس باشید &#8592;</a></div></div>"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sec_footer",
+      "elType": "section",
+      "isInner": false,
+      "settings": {
+        "layout": "full_width",
+        "stretch_section": "section-stretched",
+        "background_background": "classic",
+        "background_color": "#050505",
+        "border_top_width": {"unit": "px", "size": 1},
+        "border_color": "rgba(255,255,255,0.06)",
+        "padding": {"unit": "px", "top": "60", "right": "40", "bottom": "30", "left": "40", "isLinked": false}
+      },
+      "elements": [
+        {
+          "id": "col_footer",
+          "elType": "column",
+          "isInner": false,
+          "settings": {"_column_size": 100},
+          "elements": [
+            {
+              "id": "wgt_footer",
+              "elType": "widget",
+              "widgetType": "html",
+              "settings": {
+                "html": "<style>.cafebtc-footer{max-width:1200px;margin:0 auto;font-family:'Vazirmatn',Tahoma,Arial,sans-serif;direction:rtl;}.footer-grid{display:grid;grid-template-columns:2fr 1fr 1fr 1.5fr;gap:48px;margin-bottom:48px;}.footer-logo-col{}.footer-logo{display:flex;align-items:center;gap:12px;margin-bottom:16px;}.footer-logo-icon{width:48px;height:48px;background:linear-gradient(135deg,#f7941d,#c85808);border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:26px;color:#fff;font-weight:900;}.footer-logo-text{}.footer-logo-name{font-size:20px;font-weight:900;color:#fff;}.footer-logo-url{font-size:12px;color:#444;}.footer-about{font-size:13px;color:#555;line-height:1.8;margin-bottom:20px;max-width:280px;}.footer-social{display:flex;gap:10px;}.social-btn{width:38px;height:38px;background:#111;border:1px solid rgba(255,255,255,0.08);border-radius:10px;display:flex;align-items:center;justify-content:center;color:#666;font-size:16px;text-decoration:none;transition:all 0.3s;}.social-btn:hover{background:rgba(247,148,29,0.1);border-color:rgba(247,148,29,0.3);color:#f7941d;}.footer-col-title{font-size:13px;font-weight:700;color:#fff;letter-spacing:0.5px;margin-bottom:20px;padding-bottom:8px;border-bottom:1px solid rgba(255,255,255,0.06);}.footer-links{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:10px;}.footer-links a{font-size:13px;color:#555;text-decoration:none;transition:color 0.3s;}.footer-links a:hover{color:#f7941d;}.footer-contact{display:flex;flex-direction:column;gap:14px;}.contact-item{display:flex;align-items:flex-start;gap:10px;}.contact-icon{color:#f7941d;font-size:16px;margin-top:1px;flex-shrink:0;}.contact-text{font-size:13px;color:#555;line-height:1.6;}.footer-bottom{display:flex;align-items:center;justify-content:space-between;padding-top:24px;border-top:1px solid rgba(255,255,255,0.05);flex-wrap:wrap;gap:12px;}.footer-copy{font-size:12px;color:#333;}.footer-btc-price{display:flex;align-items:center;gap:8px;font-size:12px;color:#444;}.footer-btc-dot{width:6px;height:6px;background:#26a65b;border-radius:50%;animation:blink 2s ease-in-out infinite;}.footer-links-bottom{display:flex;gap:20px;}.footer-links-bottom a{font-size:12px;color:#333;text-decoration:none;transition:color 0.3s;}.footer-links-bottom a:hover{color:#f7941d;}@keyframes blink{0%,100%{opacity:1;}50%{opacity:0.3;}}@media(max-width:900px){.footer-grid{grid-template-columns:1fr 1fr;}.footer-logo-col{grid-column:1/-1;}.footer-bottom{flex-direction:column;text-align:center;}}</style><div class='cafebtc-footer'><div class='footer-grid'><div class='footer-logo-col'><div class='footer-logo'><div class='footer-logo-icon'>&#8383;</div><div class='footer-logo-text'><div class='footer-logo-name'>کافه بیتکوین</div><div class='footer-logo-url'>cafebtc.ir</div></div></div><p class='footer-about'>اولین کافه با پذیرش رمزارز در ایران. ترکیبی از بهترین قهوه اسپشیالتی و فناوری بلاکچین در یک فضای دوستانه و خلاقانه.</p><div class='footer-social'><a href='#' class='social-btn'>&#120143;</a><a href='#' class='social-btn'>&#128247;</a><a href='#' class='social-btn'>&#128232;</a><a href='#' class='social-btn'>&#127757;</a></div></div><div><div class='footer-col-title'>صفحات</div><ul class='footer-links'><li><a href='#'>خانه</a></li><li><a href='#menu'>منو</a></li><li><a href='#about'>درباره ما</a></li><li><a href='#edu'>آموزش</a></li><li><a href='#community'>انجمن</a></li><li><a href='#contact'>تماس</a></li></ul></div><div><div class='footer-col-title'>رمزارزها</div><ul class='footer-links'><li><a href='#'>بیتکوین (BTC)</a></li><li><a href='#'>اتریوم (ETH)</a></li><li><a href='#'>لایتنینگ &#9889;</a></li><li><a href='#'>USDT</a></li><li><a href='#'>ترون (TRX)</a></li><li><a href='#'>سایر رمزارزها</a></li></ul></div><div><div class='footer-col-title'>تماس با ما</div><div class='footer-contact'><div class='contact-item'><span class='contact-icon'>&#128205;</span><span class='contact-text'>تهران، خیابان ولیعصر، نبش کوچه سپهر</span></div><div class='contact-item'><span class='contact-icon'>&#128222;</span><span class='contact-text'>۰۲۱-۸۸۱۲۳۴۵۶</span></div><div class='contact-item'><span class='contact-icon'>&#128338;</span><span class='contact-text'>شنبه تا پنجشنبه<br>۸ صبح تا ۱۰ شب</span></div><div class='contact-item'><span class='contact-icon'>&#9993;</span><span class='contact-text'>info@cafebtc.ir</span></div></div></div></div><div class='footer-bottom'><div class='footer-copy'>&#169; ۱۴۰۳ کافه بیتکوین - تمامی حقوق محفوظ است</div><div class='footer-btc-price'><div class='footer-btc-dot'></div><span>BTC: $67,842</span></div><div class='footer-links-bottom'><a href='#'>حریم خصوصی</a><a href='#'>شرایط استفاده</a><a href='#'>نقشه سایت</a></div></div></div>"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "page_settings": {
+    "background_background": "classic",
+    "background_color": "#090909",
+    "margin": {"unit": "px", "top": "0", "right": "0", "bottom": "0", "left": "0", "isLinked": true},
+    "padding": {"unit": "px", "top": "0", "right": "0", "bottom": "0", "left": "0", "isLinked": true}
+  }
+}
