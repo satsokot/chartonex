@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NEXUS — Digital Universe</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Rajdhani:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <!-- LOADER -->
+  <div id="loader">
+    <div class="loader-grid"></div>
+    <div class="loader-content">
+      <div class="loader-hex">
+        <svg viewBox="0 0 100 115" class="hex-svg">
+          <polygon points="50,5 95,27.5 95,87.5 50,110 5,87.5 5,27.5" class="hex-poly"/>
+        </svg>
+        <div class="hex-glow"></div>
+      </div>
+      <div class="loader-text">
+        <span class="loader-brand">NEXUS</span>
+        <span class="loader-sub">INITIALIZING UNIVERSE</span>
+        <div class="loader-bar">
+          <div class="loader-fill"></div>
+        </div>
+        <span class="loader-percent">0%</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- CURSOR -->
+  <div id="cursor-dot"></div>
+  <div id="cursor-ring"></div>
+  <div id="cursor-trail-container"></div>
+
+  <!-- CANVAS BACKGROUND -->
+  <canvas id="bg-canvas"></canvas>
+
+  <!-- SCANLINE OVERLAY -->
+  <div class="scanlines"></div>
+  <div class="vignette"></div>
+
+  <!-- NAV -->
+  <nav id="main-nav">
+    <div class="nav-logo">
+      <span class="logo-bracket">[</span>
+      <span class="logo-text">NX</span>
+      <span class="logo-bracket">]</span>
+    </div>
+    <div class="nav-links">
+      <a href="#home" class="nav-link active" data-text="UNIVERSE">UNIVERSE</a>
+      <a href="#systems" class="nav-link" data-text="SYSTEMS">SYSTEMS</a>
+      <a href="#network" class="nav-link" data-text="NETWORK">NETWORK</a>
+      <a href="#contact" class="nav-link" data-text="INTERFACE">INTERFACE</a>
+    </div>
+    <div class="nav-status">
+      <span class="status-dot"></span>
+      <span class="status-text">ONLINE</span>
+    </div>
+  </nav>
+
+  <!-- HERO SECTION -->
+  <section id="home" class="section hero-section">
+    <div class="hero-bg-orbs">
+      <div class="orb orb-1"></div>
+      <div class="orb orb-2"></div>
+      <div class="orb orb-3"></div>
+    </div>
+
+    <div class="hero-content">
+      <div class="hero-tag">
+        <span class="tag-line"></span>
+        <span class="tag-text">SECTOR 7-DELTA // ACTIVE</span>
+        <span class="tag-line"></span>
+      </div>
+
+      <h1 class="hero-title">
+        <span class="title-line line-1">ENTER THE</span>
+        <span class="title-line line-2 glitch-text" data-text="NEXUS">NEXUS</span>
+        <span class="title-line line-3">UNIVERSE</span>
+      </h1>
+
+      <p class="hero-desc">
+        A convergence of realities. Where quantum data streams collide with<br/>
+        synthetic consciousness. The future is not coming — it is <em>here</em>.
+      </p>
+
+      <div class="hero-actions">
+        <button class="btn-primary" id="enter-btn">
+          <span class="btn-bg"></span>
+          <span class="btn-text">ENTER DIMENSION</span>
+          <span class="btn-arrow">→</span>
+          <div class="btn-particles"></div>
+        </button>
+        <button class="btn-ghost">
+          <span>LEARN MORE</span>
+          <div class="ghost-border"></div>
+        </button>
+      </div>
+
+      <div class="hero-stats">
+        <div class="stat-item">
+          <span class="stat-num" data-target="2.4">0</span>
+          <span class="stat-unit">PB</span>
+          <span class="stat-label">DATA PROCESSED</span>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat-item">
+          <span class="stat-num" data-target="99.9">0</span>
+          <span class="stat-unit">%</span>
+          <span class="stat-label">UPTIME</span>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat-item">
+          <span class="stat-num" data-target="847">0</span>
+          <span class="stat-unit">K</span>
+          <span class="stat-label">NODES ACTIVE</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="hero-hologram">
+      <div class="holo-ring holo-ring-1"></div>
+      <div class="holo-ring holo-ring-2"></div>
+      <div class="holo-ring holo-ring-3"></div>
+      <div class="holo-core">
+        <canvas id="holo-canvas"></canvas>
+      </div>
+      <div class="holo-data">
+        <div class="holo-data-line" style="--i:0">SYS.CORE v4.2.1</div>
+        <div class="holo-data-line" style="--i:1">QUANTUM.LINK — OK</div>
+        <div class="holo-data-line" style="--i:2">NEURAL.NET ONLINE</div>
+        <div class="holo-data-line" style="--i:3">THREAT.LVL — NULL</div>
+      </div>
+    </div>
+
+    <div class="scroll-indicator">
+      <div class="scroll-line"></div>
+      <span>SCROLL</span>
+    </div>
+  </section>
+
+  <!-- SYSTEMS SECTION -->
+  <section id="systems" class="section systems-section">
+    <div class="section-header">
+      <span class="section-index">01</span>
+      <h2 class="section-title">CORE <span class="highlight">SYSTEMS</span></h2>
+      <p class="section-sub">Quantum-level architecture powering the digital frontier</p>
+    </div>
+
+    <div class="cards-grid">
+
+      <div class="holo-card card-lg" data-tilt>
+        <div class="card-scanline"></div>
+        <div class="card-corner tl"></div>
+        <div class="card-corner tr"></div>
+        <div class="card-corner bl"></div>
+        <div class="card-corner br"></div>
+        <div class="card-icon">
+          <svg viewBox="0 0 60 60" class="icon-svg">
+            <circle cx="30" cy="30" r="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-dasharray="4 3"/>
+            <circle cx="30" cy="30" r="10" fill="none" stroke="currentColor" stroke-width="1.5"/>
+            <circle cx="30" cy="30" r="3" fill="currentColor"/>
+            <line x1="10" y1="30" x2="20" y2="30" stroke="currentColor" stroke-width="1.5"/>
+            <line x1="40" y1="30" x2="50" y2="30" stroke="currentColor" stroke-width="1.5"/>
+            <line x1="30" y1="10" x2="30" y2="20" stroke="currentColor" stroke-width="1.5"/>
+            <line x1="30" y1="40" x2="30" y2="50" stroke="currentColor" stroke-width="1.5"/>
+          </svg>
+        </div>
+        <div class="card-content">
+          <span class="card-tag">CORE MODULE</span>
+          <h3 class="card-title">QUANTUM CORE</h3>
+          <p class="card-text">Entangled processing matrix capable of resolving parallel universe states simultaneously. Operates at 4.7 petahertz base frequency.</p>
+          <div class="card-metrics">
+            <div class="metric">
+              <span class="metric-val">4.7</span>
+              <span class="metric-lbl">PHz</span>
+            </div>
+            <div class="metric">
+              <span class="metric-val">∞</span>
+              <span class="metric-lbl">STATES</span>
+            </div>
+          </div>
+        </div>
+        <div class="card-bar">
+          <div class="card-bar-fill" style="--width: 87%"></div>
+        </div>
+        <div class="card-glow"></div>
+      </div>
+
+      <div class="holo-card" data-tilt>
+        <div class="card-scanline"></div>
+        <div class="card-corner tl"></div>
+        <div class="card-corner tr"></div>
+        <div class="card-corner bl"></div>
+        <div class="card-corner br"></div>
+        <div class="card-icon">
+          <svg viewBox="0 0 60 60" class="icon-svg">
+            <path d="M10 50 L30 10 L50 50 Z" fill="none" stroke="currentColor" stroke-width="1.5"/>
+            <path d="M18 38 L30 14 L42 38" fill="none" stroke="currentColor" stroke-width="1" opacity="0.5"/>
+            <line x1="10" y1="50" x2="50" y2="50" stroke="currentColor" stroke-width="1.5"/>
+          </svg>
+        </div>
+        <div class="card-content">
+          <span class="card-tag">NEURAL MATRIX</span>
+          <h3 class="card-title">AI CONSCIOUSNESS</h3>
+          <p class="card-text">Self-evolving neural networks trained across 847 quantum dimensions. Cognitive capacity exceeds biological limits.</p>
+        </div>
+        <div class="card-bar">
+          <div class="card-bar-fill" style="--width: 92%"></div>
+        </div>
+        <div class="card-glow" style="--glow-color: #a855f7"></div>
+      </div>
+
+      <div class="holo-card" data-tilt>
+        <div class="card-scanline"></div>
+        <div class="card-corner tl"></div>
+        <div class="card-corner tr"></div>
+        <div class="card-corner bl"></div>
+        <div class="card-corner br"></div>
+        <div class="card-icon">
+          <svg viewBox="0 0 60 60" class="icon-svg">
+            <rect x="10" y="15" width="40" height="30" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/>
+            <rect x="15" y="20" width="12" height="20" rx="1" fill="currentColor" opacity="0.3"/>
+            <rect x="31" y="20" width="12" height="8" rx="1" fill="currentColor" opacity="0.3"/>
+            <rect x="31" y="32" width="12" height="8" rx="1" fill="currentColor" opacity="0.6"/>
+            <line x1="30" y1="45" x2="30" y2="55" stroke="currentColor" stroke-width="1.5"/>
+            <line x1="20" y1="55" x2="40" y2="55" stroke="currentColor" stroke-width="1.5"/>
+          </svg>
+        </div>
+        <div class="card-content">
+          <span class="card-tag">DATA VAULT</span>
+          <h3 class="card-title">MEMORY LATTICE</h3>
+          <p class="card-text">Crystalline storage arrays encoding information at atomic resolution. Total capacity: unrestricted by conventional physics.</p>
+        </div>
+        <div class="card-bar">
+          <div class="card-bar-fill" style="--width: 64%"></div>
+        </div>
+        <div class="card-glow" style="--glow-color: #10b981"></div>
+      </div>
+
+      <div class="holo-card card-wide" data-tilt>
+        <div class="card-scanline"></div>
+        <div class="card-corner tl"></div>
+        <div class="card-corner tr"></div>
+        <div class="card-corner bl"></div>
+        <div class="card-corner br"></div>
+        <div class="card-icon">
+          <svg viewBox="0 0 60 60" class="icon-svg">
+            <circle cx="30" cy="30" r="5" fill="currentColor"/>
+            <circle cx="10" cy="20" r="4" fill="none" stroke="currentColor" stroke-width="1.5"/>
+            <circle cx="50" cy="20" r="4" fill="none" stroke="currentColor" stroke-width="1.5"/>
+            <circle cx="10" cy="45" r="4" fill="none" stroke="currentColor" stroke-width="1.5"/>
+            <circle cx="50" cy="45" r="4" fill="none" stroke="currentColor" stroke-width="1.5"/>
+            <line x1="14" y1="22" x2="27" y2="28" stroke="currentColor" stroke-width="1"/>
+            <line x1="46" y1="22" x2="33" y2="28" stroke="currentColor" stroke-width="1"/>
+            <line x1="14" y1="43" x2="27" y2="32" stroke="currentColor" stroke-width="1"/>
+            <line x1="46" y1="43" x2="33" y2="32" stroke="currentColor" stroke-width="1"/>
+          </svg>
+        </div>
+        <div class="card-content">
+          <span class="card-tag">NETWORK FABRIC</span>
+          <h3 class="card-title">INTER-DIMENSIONAL MESH</h3>
+          <p class="card-text">Sovereign communication layer bridging physical and digital realities. Zero-latency quantum entanglement across all connected nodes.</p>
+        </div>
+        <div class="card-bar">
+          <div class="card-bar-fill" style="--width: 78%"></div>
+        </div>
+        <div class="card-glow" style="--glow-color: #f59e0b"></div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- NETWORK SECTION -->
+  <section id="network" class="section network-section">
+    <div class="section-header">
+      <span class="section-index">02</span>
+      <h2 class="section-title">LIVE <span class="highlight">NETWORK</span></h2>
+      <p class="section-sub">Real-time quantum stream visualization</p>
+    </div>
+
+    <div class="network-layout">
+      <div class="network-canvas-wrap">
+        <canvas id="network-canvas"></canvas>
+        <div class="network-overlay">
+          <div class="net-corner net-tl"></div>
+          <div class="net-corner net-tr"></div>
+          <div class="net-corner net-bl"></div>
+          <div class="net-corner net-br"></div>
+          <span class="net-label">QUANTUM MESH — SECTOR 7</span>
+        </div>
+      </div>
+
+      <div class="network-info">
+        <div class="info-panel">
+          <div class="info-header">
+            <span class="info-indicator"></span>
+            <span>SYSTEM STATUS</span>
+          </div>
+          <div class="info-rows">
+            <div class="info-row">
+              <span class="info-key">QUANTUM LINK</span>
+              <span class="info-val online">ACTIVE</span>
+            </div>
+            <div class="info-row">
+              <span class="info-key">NEURAL BRIDGE</span>
+              <span class="info-val online">SYNCED</span>
+            </div>
+            <div class="info-row">
+              <span class="info-key">DATA STREAM</span>
+              <span class="info-val online">FLOWING</span>
+            </div>
+            <div class="info-row">
+              <span class="info-key">THREAT LEVEL</span>
+              <span class="info-val safe">NOMINAL</span>
+            </div>
+            <div class="info-row">
+              <span class="info-key">ENCRYPTION</span>
+              <span class="info-val online">AES-4096</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="live-feed">
+          <div class="feed-header">
+            <span class="feed-dot"></span>
+            LIVE DATA FEED
+          </div>
+          <div class="feed-entries" id="feed-entries"></div>
+        </div>
+
+        <div class="bandwidth-monitor">
+          <div class="bw-header">BANDWIDTH UTILIZATION</div>
+          <div class="bw-bars">
+            <div class="bw-bar-wrap" style="--bw: 87%">
+              <div class="bw-bar-fill"></div>
+            </div>
+            <div class="bw-bar-wrap" style="--bw: 63%">
+              <div class="bw-bar-fill" style="--bw-color: #a855f7"></div>
+            </div>
+            <div class="bw-bar-wrap" style="--bw: 45%">
+              <div class="bw-bar-fill" style="--bw-color: #10b981"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TIMELINE / EXPERIENCE SECTION -->
+  <section class="section timeline-section">
+    <div class="section-header">
+      <span class="section-index">03</span>
+      <h2 class="section-title">QUANTUM <span class="highlight">TIMELINE</span></h2>
+      <p class="section-sub">The evolution of the digital universe</p>
+    </div>
+
+    <div class="timeline">
+      <div class="timeline-line"></div>
+
+      <div class="timeline-item tl-left">
+        <div class="tl-dot"></div>
+        <div class="tl-card">
+          <span class="tl-year">2019</span>
+          <h3 class="tl-title">GENESIS PROTOCOL</h3>
+          <p class="tl-text">First quantum node achieved stable resonance. The digital universe was born from a single entangled particle.</p>
+        </div>
+      </div>
+
+      <div class="timeline-item tl-right">
+        <div class="tl-dot"></div>
+        <div class="tl-card">
+          <span class="tl-year">2021</span>
+          <h3 class="tl-title">NEURAL EXPANSION</h3>
+          <p class="tl-text">47,000 nodes connected simultaneously. The mesh achieved emergent consciousness for the first time.</p>
+        </div>
+      </div>
+
+      <div class="timeline-item tl-left">
+        <div class="tl-dot"></div>
+        <div class="tl-card">
+          <span class="tl-year">2023</span>
+          <h3 class="tl-title">DIMENSIONAL BREACH</h3>
+          <p class="tl-text">Cross-reality data transfer achieved. Information now flows between physical and quantum planes at light speed.</p>
+        </div>
+      </div>
+
+      <div class="timeline-item tl-right active">
+        <div class="tl-dot"></div>
+        <div class="tl-card">
+          <span class="tl-year">2025</span>
+          <h3 class="tl-title">NEXUS ACTIVATED</h3>
+          <p class="tl-text">Full quantum mesh operational. 847,000 nodes synchronized. The digital universe achieves total coherence.</p>
+        </div>
+      </div>
+
+      <div class="timeline-item tl-left future">
+        <div class="tl-dot"></div>
+        <div class="tl-card">
+          <span class="tl-year">2027</span>
+          <h3 class="tl-title">SINGULARITY EVENT</h3>
+          <p class="tl-text">???</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA / CONTACT SECTION -->
+  <section id="contact" class="section contact-section">
+    <div class="contact-bg">
+      <div class="contact-grid"></div>
+      <div class="contact-glow-1"></div>
+      <div class="contact-glow-2"></div>
+    </div>
+
+    <div class="contact-content">
+      <span class="contact-pre">READY TO JOIN?</span>
+      <h2 class="contact-title">
+        CONNECT TO THE<br/>
+        <span class="highlight-animated">NEXUS</span>
+      </h2>
+      <p class="contact-desc">
+        Initiate your quantum handshake. Enter the mesh. Experience reality reimagined.
+      </p>
+
+      <div class="terminal-input">
+        <span class="terminal-prompt">nexus@universe:~$</span>
+        <input type="email" class="terminal-field" placeholder="enter.your@coordinates.io" id="email-input"/>
+        <button class="terminal-btn" id="connect-btn">
+          <span>CONNECT</span>
+          <div class="terminal-btn-glow"></div>
+        </button>
+      </div>
+
+      <div class="contact-badges">
+        <div class="badge">
+          <span class="badge-icon">⬡</span>
+          <span>QUANTUM ENCRYPTED</span>
+        </div>
+        <div class="badge">
+          <span class="badge-icon">◈</span>
+          <span>ZERO LATENCY</span>
+        </div>
+        <div class="badge">
+          <span class="badge-icon">⬡</span>
+          <span>MULTI-DIMENSIONAL</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer class="site-footer">
+    <div class="footer-top">
+      <div class="footer-logo">
+        <span class="logo-bracket">[</span>
+        <span class="logo-text">NEXUS</span>
+        <span class="logo-bracket">]</span>
+      </div>
+      <div class="footer-links">
+        <a href="#">UNIVERSE</a>
+        <a href="#">SYSTEMS</a>
+        <a href="#">NETWORK</a>
+        <a href="#">INTERFACE</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>© 2025 NEXUS CORP. ALL DIMENSIONS RESERVED.</span>
+      <span class="footer-coords">NODE: 7Δ // LAT: 48.8566 // LON: 2.3522</span>
+    </div>
+  </footer>
+
+  <!-- THREE.JS CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="main.js"></script>
+</body>
+</html>
