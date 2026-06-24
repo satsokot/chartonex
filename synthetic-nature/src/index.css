@@ -2,12 +2,14 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Global Reset ── */
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
 }
 
+/* ── Body ── */
 body {
   font-family: 'Geist', -apple-system, BlinkMacSystemFont, sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -15,10 +17,12 @@ body {
   background: #010101;
 }
 
+/* ── Garamond heading class ── */
 .font-garamond {
   font-family: 'Garamond', 'Times New Roman', serif;
 }
 
+/* ── Mobile menu glass ── */
 .mobile-menu-glass {
   background: rgba(10, 10, 10, 0.7);
   backdrop-filter: blur(20px);
@@ -27,6 +31,7 @@ body {
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
+/* ── Liquid glass button ── */
 .liquid-glass {
   background: rgba(255, 255, 255, 0.01);
   background-blend-mode: luminosity;

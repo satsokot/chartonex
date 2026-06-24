@@ -5,42 +5,24 @@ interface StaggeredFadeProps {
   text: string
 }
 
-const containerVariants = {
-  hidden: {},
-  show: {
-    transition: {
-      staggerChildren: 0.07,
-    },
-  },
-}
-
-const charVariants = {
-  hidden: { opacity: 0 },
-  show: { opacity: 1 },
-}
-
 export default function StaggeredFade({ text }: StaggeredFadeProps) {
-  const ref = useRef<HTMLDivElement>(null)
+  const ref = useRef<HTMLSpanElement>(null)
   const isInView = useInView(ref, { once: true })
 
   return (
-    <motion.div
-      ref={ref}
-      variants={containerVariants}
-      initial="hidden"
-      animate={isInView ? 'show' : 'hidden'}
-      style={{ display: 'inline' }}
-    >
-      {text.split('').map((char, index) => (
+    <span ref={ref}>
+      {text.split('').map((char, i) => (
         <motion.span
-          key={index}
-          variants={charVariants}
-          transition={{ delay: index * 0.07, duration: 0.4 }}
-          style={{ display: 'inline-block', whiteSpace: char === ' ' ? 'pre' : 'normal' }}
+          key={i}
+          variants={{ hidden: { opacity: 0 }, show: { opacity: 1 } }}
+          initial="hidden"
+          animate={isInView ? 'show' : 'hidden'}
+          transition={{ duration: 0.4, delay: i * 0.07 }}
+          style={{ display: 'inline-block', whiteSpace: char === ' ' ? 'pre' : undefined }}
         >
-          {char === ' ' ? ' ' : char}
+          {char}
         </motion.span>
       ))}
-    </motion.div>
+    </span>
   )
 }
