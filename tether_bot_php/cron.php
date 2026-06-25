@@ -53,6 +53,7 @@ function run_check(): void {
     }
 
     // خواندن کانال مبدا
+    echo "src_channel={$src_ch}\n";
     $src_msgs = tg_channel_msgs($src_ch, 10);
     echo "src_msgs_count=".count($src_msgs)."\n";
     foreach ($src_msgs as $i=>$m) echo "src[$i]: ".mb_substr($m,0,80)."\n";
@@ -101,7 +102,9 @@ function run_check(): void {
 
 function tg_channel_msgs(string $channel, int $limit): array {
     $channel = ltrim(trim($channel), '@');
-    $html = http_fetch("https://t.me/s/{$channel}");
+    $url = "https://t.me/s/{$channel}";
+    [$html, $http_code, $curl_err] = http_fetch_dbg($url);
+    echo "fetch url={$url} http={$http_code} len=".strlen($html ?: '')." err={$curl_err}\n";
     if (!$html) return [];
     preg_match_all('/<div class="tgme_widget_message_text[^"]*"[^>]*>(.*?)<\/div>/is', $html, $m);
     $msgs = [];
@@ -178,7 +181,11 @@ function tg_post(string $url, array $data): array {
 }
 
 function http_fetch(string $url): string|false {
+    [$r] = http_fetch_dbg($url); return $r;
+}
+function http_fetch_dbg(string $url): array {
     $ch=curl_init($url);
-    curl_setopt_array($ch,[CURLOPT_RETURNTRANSFER=>1,CURLOPT_TIMEOUT=>15,CURLOPT_USERAGENT=>'Mozilla/5.0',CURLOPT_FOLLOWLOCATION=>1]);
-    $r=curl_exec($ch); curl_close($ch); return $r;
+    curl_setopt_array($ch,[CURLOPT_RETURNTRANSFER=>1,CURLOPT_TIMEOUT=>20,CURLOPT_USERAGENT=>'Mozilla/5.0 (compatible)',CURLOPT_FOLLOWLOCATION=>1,CURLOPT_SSL_VERIFYPEER=>1]);
+    $r=curl_exec($ch); $code=curl_getinfo($ch,CURLINFO_HTTP_CODE); $err=curl_error($ch); curl_close($ch);
+    return [$r ?: false, $code, $err];
 }
