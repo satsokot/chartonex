@@ -1,118 +1,176 @@
 <?php
-/**
- * این فایل توسط Cron Job هاست اجرا می‌شود
- * آدرس برای cron: php /path/to/cron.php
- * یا از طریق URL: https://site.com/tether_bot/cron.php?token=CRON_TOKEN
- */
+require_once __DIR__ . '/config.php';
 
-require_once __DIR__ . '/includes/config.php';
-require_once __DIR__ . '/includes/db.php';
-require_once __DIR__ . '/includes/telegram.php';
-require_once __DIR__ . '/includes/parser.php';
-
-// --- تأیید هویت اگر از طریق URL فراخوانی می‌شود ---
+// احراز هویت
 if (PHP_SAPI !== 'cli') {
-    $token = $_GET['token'] ?? '';
-    $cron_token = setting_get('cron_token');
-    if (empty($cron_token) || $token !== $cron_token) {
-        http_response_code(403);
-        die('Forbidden');
+    try {
+        $pdo_tmp = new PDO("mysql:host=".DB_HOST.";dbname=".DB_NAME.";charset=utf8mb4", DB_USER, DB_PASS, [PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION]);
+        $tok = $pdo_tmp->query("SELECT `value` FROM settings WHERE `key`='cron_token'")->fetchColumn();
+        if (empty($tok) || ($_GET['token'] ?? '') !== $tok) { http_response_code(403); die('Forbidden'); }
+    } catch(Exception $e) { die('DB Error'); }
+}
+
+run_check();
+
+function run_check(): void {
+    $pdo = new PDO(
+        "mysql:host=".DB_HOST.";dbname=".DB_NAME.";charset=utf8mb4",
+        DB_USER, DB_PASS,
+        [PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION, PDO::ATTR_DEFAULT_FETCH_MODE=>PDO::FETCH_ASSOC]
+    );
+
+    function qget(PDO $pdo, string $k): string {
+        $r = $pdo->prepare("SELECT `value` FROM settings WHERE `key`=?");
+        $r->execute([$k]); $row = $r->fetch();
+        return $row ? (string)$row['value'] : '';
+    }
+    function qset(PDO $pdo, string $k, string $v): void {
+        $pdo->prepare("INSERT INTO settings (`key`,`value`) VALUES (?,?) ON DUPLICATE KEY UPDATE `value`=?")->execute([$k,$v,$v]);
+    }
+    function log_it(PDO $pdo, array $d): void {
+        $pdo->prepare("INSERT INTO price_logs (source_buy,source_sell,source_avg,dest_price,difference,sent_price,action,message_id)
+            VALUES (?,?,?,?,?,?,?,?)")->execute([
+            $d['source_buy']??null, $d['source_sell']??null, $d['source_avg']??null,
+            $d['dest_price']??null, $d['difference']??null,  $d['sent_price']??null,
+            $d['action']??'no_action', $d['message_id']??null
+        ]);
+    }
+
+    $src_ch   = qget($pdo, 'source_channel');
+    $dst_ch   = qget($pdo, 'dest_channel');
+    $token    = qget($pdo, 'bot_token');
+    $thresh   = (float)(qget($pdo, 'difference_threshold') ?: 300);
+    $deduct   = (float)(qget($pdo, 'price_deduction')      ?: 100);
+    $tmpl     = qget($pdo, 'message_template') ?: "قیمت تتر : {price} تومان 💵 USDT\n─────────────────\nتاریخ: {date}";
+    $btn1t    = qget($pdo, 'button1_text');
+    $btn1u    = qget($pdo, 'button1_url');
+    $btn2t    = qget($pdo, 'button2_text');
+    $btn2u    = qget($pdo, 'button2_url');
+    $last_id  = qget($pdo, 'last_sent_message_id');
+
+    if (!$src_ch || !$dst_ch || !$token) {
+        echo "config_missing\n"; log_it($pdo, ['action'=>'config_missing']); return;
+    }
+
+    // خواندن کانال مبدا
+    $src_msgs = tg_channel_msgs($src_ch, 10);
+    [$buy, $sell] = parse_source($src_msgs);
+    $avg = ($buy !== null && $sell !== null) ? ($buy+$sell)/2 : ($buy ?? $sell);
+
+    if ($avg === null) {
+        echo "parse_error_source\n";
+        log_it($pdo, ['source_buy'=>$buy,'source_sell'=>$sell,'action'=>'parse_error_source']); return;
+    }
+
+    // خواندن کانال مقصد
+    $dst_msgs  = tg_channel_msgs($dst_ch, 3);
+    $dest_price = parse_dest($dst_msgs);
+
+    if ($dest_price === null) {
+        echo "parse_error_dest\n";
+        log_it($pdo, ['source_buy'=>$buy,'source_sell'=>$sell,'source_avg'=>$avg,'action'=>'parse_error_dest']); return;
+    }
+
+    $diff = abs($dest_price - $avg);
+    echo "avg={$avg} dest={$dest_price} diff={$diff} threshold={$thresh}\n";
+
+    if ($diff <= $thresh) {
+        echo "no_action\n";
+        log_it($pdo, ['source_buy'=>$buy,'source_sell'=>$sell,'source_avg'=>$avg,'dest_price'=>$dest_price,'difference'=>$diff,'action'=>'no_action']); return;
+    }
+
+    $new_price = round($avg - $deduct);
+    $msg_text  = build_msg($new_price, $tmpl);
+    $edit_id   = $last_id ? (int)$last_id : null;
+
+    $result = tg_send($token, $dst_ch, $msg_text, $btn1t, $btn1u, $btn2t, $btn2u, $edit_id);
+
+    if ($result['ok'] ?? false) {
+        $new_msg_id = $result['result']['message_id'] ?? null;
+        qset($pdo, 'last_sent_message_id', (string)($new_msg_id ?? ''));
+        echo "sent price={$new_price} id={$new_msg_id}\n";
+        log_it($pdo, ['source_buy'=>$buy,'source_sell'=>$sell,'source_avg'=>$avg,'dest_price'=>$dest_price,'difference'=>$diff,'sent_price'=>$new_price,'action'=>'sent','message_id'=>$new_msg_id]);
+    } else {
+        echo "send_error: ".($result['description']??'unknown')."\n";
+        log_it($pdo, ['source_buy'=>$buy,'source_sell'=>$sell,'source_avg'=>$avg,'dest_price'=>$dest_price,'difference'=>$diff,'sent_price'=>$new_price,'action'=>'send_error']);
     }
 }
 
-// --- بارگذاری تنظیمات ---
-$source_channel  = setting_get('source_channel');
-$dest_channel    = setting_get('dest_channel');
-$bot_token       = setting_get('bot_token');
-$threshold       = (float)setting_get('difference_threshold', '300');
-$deduction       = (float)setting_get('price_deduction', '100');
-$template        = setting_get('message_template');
-$btn1_text       = setting_get('button1_text');
-$btn1_url        = setting_get('button1_url');
-$btn2_text       = setting_get('button2_text');
-$btn2_url        = setting_get('button2_url');
-$last_msg_id_str = setting_get('last_sent_message_id');
-$last_msg_id     = $last_msg_id_str ? (int)$last_msg_id_str : null;
-
-$log = ['action' => 'no_action'];
-
-if (!$source_channel || !$dest_channel || !$bot_token) {
-    $log['action'] = 'config_missing';
-    log_insert($log);
-    echo "config_missing\n";
-    exit;
+function tg_channel_msgs(string $channel, int $limit): array {
+    $channel = ltrim(trim($channel), '@');
+    $html = http_fetch("https://t.me/s/{$channel}");
+    if (!$html) return [];
+    preg_match_all('/<div class="tgme_widget_message_text[^"]*"[^>]*>(.*?)<\/div>/is', $html, $m);
+    $msgs = [];
+    if (!empty($m[1])) {
+        foreach (array_reverse($m[1]) as $item) {
+            $txt = trim(preg_replace('/\s+/', ' ', html_entity_decode(strip_tags($item), ENT_QUOTES|ENT_HTML5, 'UTF-8')));
+            if ($txt) { $msgs[] = $txt; if (count($msgs) >= $limit) break; }
+        }
+    }
+    return $msgs;
 }
 
-// --- ۱. خواندن کانال مبدا ---
-$source_msgs = fetch_channel_messages($source_channel, 10);
-if (empty($source_msgs)) {
-    $log['action'] = 'parse_error_source';
-    log_insert($log);
-    echo "cannot_read_source\n";
-    exit;
+function parse_source(array $msgs): array {
+    $buy = $sell = null;
+    foreach ($msgs as $txt) {
+        foreach (explode("\n", $txt) as $line) {
+            $p = num_from($line);
+            if ($p === null) continue;
+            if (mb_strpos($line,'خرید')!==false && $buy===null)  $buy  = $p;
+            if (mb_strpos($line,'فروش')!==false && $sell===null) $sell = $p;
+            if ($buy!==null && $sell!==null) break 2;
+        }
+    }
+    return [$buy, $sell];
 }
 
-$parsed  = parse_source_prices($source_msgs);
-$buy     = $parsed['buy'];
-$sell    = $parsed['sell'];
-$avg     = calculate_average($buy, $sell);
-
-$log['source_buy']  = $buy;
-$log['source_sell'] = $sell;
-$log['source_avg']  = $avg;
-
-if ($avg === null) {
-    $log['action'] = 'parse_error_source';
-    log_insert($log);
-    echo "cannot_parse_prices\n";
-    exit;
+function parse_dest(array $msgs): ?float {
+    foreach ($msgs as $t) { $p = num_from($t); if ($p !== null) return $p; }
+    return null;
 }
 
-// --- ۲. خواندن کانال مقصد ---
-$dest_msgs  = fetch_channel_messages($dest_channel, 3);
-$dest_price = parse_dest_price($dest_msgs);
-$log['dest_price'] = $dest_price;
-
-if ($dest_price === null) {
-    $log['action'] = 'parse_error_dest';
-    log_insert($log);
-    echo "cannot_parse_dest\n";
-    exit;
+function num_from(string $t): ?float {
+    $c = str_replace([',','٬','،'], '', $t);
+    return preg_match('/\b(\d{4,})\b/', $c, $m) ? (float)$m[1] : null;
 }
 
-// --- ۳. مقایسه ---
-$diff       = abs($dest_price - $avg);
-$log['difference'] = $diff;
-
-echo "avg={$avg} dest={$dest_price} diff={$diff} threshold={$threshold}\n";
-
-if ($diff <= $threshold) {
-    $log['action'] = 'no_action';
-    log_insert($log);
-    echo "no_action (diff within threshold)\n";
-    exit;
+function build_msg(float $price, string $tpl): string {
+    date_default_timezone_set('Asia/Tehran');
+    return str_replace(['{price}','{date}'], [number_format((int)$price), jalali_now()], $tpl);
 }
 
-// --- ۴. محاسبه و ارسال قیمت جدید ---
-$new_price = round($avg - $deduction);
-$message   = build_message($new_price, $template);
-$log['sent_price'] = $new_price;
-
-$result = send_or_edit_message(
-    $bot_token, $dest_channel, $message,
-    $btn1_text, $btn1_url, $btn2_text, $btn2_url,
-    $last_msg_id
-);
-
-if ($result['ok'] ?? false) {
-    $new_id = $result['result']['message_id'] ?? null;
-    setting_set('last_sent_message_id', (string)($new_id ?? ''));
-    $log['action']     = 'sent';
-    $log['message_id'] = $new_id;
-    echo "sent price={$new_price} message_id={$new_id}\n";
-} else {
-    $log['action'] = 'send_error';
-    echo "send_error: " . ($result['description'] ?? 'unknown') . "\n";
+function jalali_now(): string {
+    $t = time(); [$y,$m,$d] = [(int)date('Y',$t),(int)date('n',$t),(int)date('j',$t)];
+    $n = 365*$y+(int)(($y+3)/4)-(int)(($y+99)/100)+(int)(($y+399)/400);
+    $gd=[0,31,59+($y%4==0&&($y%100!=0||$y%400==0)?1:0),90,120,151,181,212,243,273,304,334];
+    $n+=$gd[$m-1]+$d-1; $jn=$n-79; $jp=(int)($jn/12053); $jn%=12053;
+    $jy=979+33*$jp+4*(int)($jn/1461); $jn%=1461;
+    if($jn>=366){$jy+=(int)(($jn-1)/365);$jn=($jn-1)%365;}
+    $mi=[0,31,59,90,120,151,181,212,242,272,302,333]; $jm=$jd=0;
+    foreach($mi as $i=>$v){$lim=$i<6?$v+31:$v+30; if($jn<$lim){$jm=$i+1;$jd=$jn-$v+1;break;}}
+    return $jy.'/'.str_pad($jm,2,'0',STR_PAD_LEFT).'/'.str_pad($jd,2,'0',STR_PAD_LEFT);
 }
 
-log_insert($log);
+function tg_send(string $tok, string $ch, string $txt, string $b1t, string $b1u, string $b2t, string $b2u, ?int $edit): array {
+    $row = []; if($b1t&&$b1u) $row[]=['text'=>$b1t,'url'=>$b1u]; if($b2t&&$b2u) $row[]=['text'=>$b2t,'url'=>$b2u];
+    $pl = ['chat_id'=>$ch,'text'=>$txt,'parse_mode'=>'HTML'];
+    if($row) $pl['reply_markup']=['inline_keyboard'=>[$row]];
+    $base = "https://api.telegram.org/bot{$tok}";
+    if ($edit) { $pl['message_id']=$edit; $r=tg_post("{$base}/editMessageText",$pl); if(!($r['ok']??false)&&in_array($r['error_code']??0,[400,404])){unset($pl['message_id']);$r=tg_post("{$base}/sendMessage",$pl);} return $r; }
+    return tg_post("{$base}/sendMessage",$pl);
+}
+
+function tg_post(string $url, array $data): array {
+    $ch = curl_init($url);
+    curl_setopt_array($ch,[CURLOPT_POST=>1,CURLOPT_POSTFIELDS=>json_encode($data),CURLOPT_HTTPHEADER=>['Content-Type: application/json'],CURLOPT_RETURNTRANSFER=>1,CURLOPT_TIMEOUT=>15]);
+    $res=curl_exec($ch); $err=curl_error($ch); curl_close($ch);
+    if($err) return ['ok'=>false,'description'=>$err];
+    return json_decode($res,true)?:['ok'=>false,'description'=>'Invalid JSON'];
+}
+
+function http_fetch(string $url): string|false {
+    $ch=curl_init($url);
+    curl_setopt_array($ch,[CURLOPT_RETURNTRANSFER=>1,CURLOPT_TIMEOUT=>15,CURLOPT_USERAGENT=>'Mozilla/5.0',CURLOPT_FOLLOWLOCATION=>1]);
+    $r=curl_exec($ch); curl_close($ch); return $r;
+}
