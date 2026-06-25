@@ -36,28 +36,38 @@ function run_check(): void {
         ]);
     }
 
-    $src_ch   = qget($pdo, 'source_channel');
-    $dst_ch   = qget($pdo, 'dest_channel');
-    $token    = qget($pdo, 'bot_token');
-    $thresh   = (float)(qget($pdo, 'difference_threshold') ?: 300);
-    $deduct   = (float)(qget($pdo, 'price_deduction')      ?: 100);
-    $tmpl     = qget($pdo, 'message_template') ?: "قیمت تتر : {price} تومان 💵 USDT\n─────────────────\nتاریخ: {date}";
-    $btn1t    = qget($pdo, 'button1_text');
-    $btn1u    = qget($pdo, 'button1_url');
-    $btn2t    = qget($pdo, 'button2_text');
-    $btn2u    = qget($pdo, 'button2_url');
-    $last_id  = qget($pdo, 'last_sent_message_id');
+    $src_ch  = qget($pdo, 'source_channel');
+    $dst_ch  = qget($pdo, 'dest_channel');
+    $token   = qget($pdo, 'bot_token');
+    $thresh  = (float)(qget($pdo, 'difference_threshold') ?: 300);
+    $deduct  = (float)(qget($pdo, 'price_deduction')      ?: 100);
+    $tmpl    = qget($pdo, 'message_template') ?: "قیمت تتر : {price} تومان 💵 USDT\n─────────────────\nتاریخ: {date}";
+    $btn1t   = qget($pdo, 'button1_text');
+    $btn1u   = qget($pdo, 'button1_url');
+    $btn2t   = qget($pdo, 'button2_text');
+    $btn2u   = qget($pdo, 'button2_url');
+    $last_id = qget($pdo, 'last_sent_message_id');
 
     if (!$src_ch || !$dst_ch || !$token) {
         echo "config_missing\n"; log_it($pdo, ['action'=>'config_missing']); return;
     }
 
-    // خواندن کانال مبدا
+    // ── خواندن کانال مبدا ──────────────────────────────────────────────────
     echo "src_channel={$src_ch}\n";
     $src_msgs = tg_channel_msgs($src_ch, 10);
     echo "src_msgs_count=".count($src_msgs)."\n";
-    foreach ($src_msgs as $i=>$m) echo "src[$i]: ".mb_substr($m,0,80)."\n";
+    foreach ($src_msgs as $i => $m) echo "src[{$i}]: ".mb_substr($m, 0, 100)."\n";
+
     [$buy, $sell] = parse_source($src_msgs);
+
+    // اگر از scraping نشد، از قیمت‌های ذخیره‌شده استفاده کن
+    if ($buy  === null) { $v = qget($pdo,'last_source_buy');  if ($v !== '') { $buy  = (float)$v; echo "buy_fallback={$buy}\n"; } }
+    if ($sell === null) { $v = qget($pdo,'last_source_sell'); if ($v !== '') { $sell = (float)$v; echo "sell_fallback={$sell}\n"; } }
+
+    // اگر موفق شدیم قیمت جدید بگیریم، ذخیره کن
+    if ($buy  !== null) qset($pdo, 'last_source_buy',  (string)$buy);
+    if ($sell !== null) qset($pdo, 'last_source_sell', (string)$sell);
+
     echo "buy={$buy} sell={$sell}\n";
     $avg = ($buy !== null && $sell !== null) ? ($buy+$sell)/2 : ($buy ?? $sell);
 
@@ -66,13 +76,15 @@ function run_check(): void {
         log_it($pdo, ['source_buy'=>$buy,'source_sell'=>$sell,'action'=>'parse_error_source']); return;
     }
 
-    // خواندن کانال مقصد
-    $dst_msgs  = tg_channel_msgs($dst_ch, 3);
-    $dest_price = parse_dest($dst_msgs);
+    // ── قیمت فعلی کانال مقصد (از DB نه scraping) ─────────────────────────
+    $dest_str   = qget($pdo, 'last_sent_price');
+    $dest_price = $dest_str !== '' ? (float)$dest_str : null;
 
     if ($dest_price === null) {
-        echo "parse_error_dest\n";
-        log_it($pdo, ['source_buy'=>$buy,'source_sell'=>$sell,'source_avg'=>$avg,'action'=>'parse_error_dest']); return;
+        // اولین بار: از لاگ‌ها بخوان
+        $row = $pdo->query("SELECT sent_price FROM price_logs WHERE action='sent' ORDER BY id DESC LIMIT 1")->fetch();
+        $dest_price = $row && $row['sent_price'] ? (float)$row['sent_price'] : 0;
+        echo "first_run dest_price={$dest_price}\n";
     }
 
     $diff = abs($dest_price - $avg);
@@ -92,6 +104,7 @@ function run_check(): void {
     if ($result['ok'] ?? false) {
         $new_msg_id = $result['result']['message_id'] ?? null;
         qset($pdo, 'last_sent_message_id', (string)($new_msg_id ?? ''));
+        qset($pdo, 'last_sent_price', (string)$new_price); // ذخیره قیمت ارسال‌شده
         echo "sent price={$new_price} id={$new_msg_id}\n";
         log_it($pdo, ['source_buy'=>$buy,'source_sell'=>$sell,'source_avg'=>$avg,'dest_price'=>$dest_price,'difference'=>$diff,'sent_price'=>$new_price,'action'=>'sent','message_id'=>$new_msg_id]);
     } else {
@@ -100,21 +113,29 @@ function run_check(): void {
     }
 }
 
+// ── خواندن پیام‌های کانال ─────────────────────────────────────────────────
+// چند URL موازی امتحان می‌کند: t.me و telegram.me
 function tg_channel_msgs(string $channel, int $limit): array {
     $channel = ltrim(trim($channel), '@');
-    $url = "https://t.me/s/{$channel}";
-    [$html, $http_code, $curl_err] = http_fetch_dbg($url);
-    echo "fetch url={$url} http={$http_code} len=".strlen($html ?: '')." err={$curl_err}\n";
+    $urls = [
+        "https://t.me/s/{$channel}",
+        "https://telegram.me/s/{$channel}",
+    ];
+    $html = false;
+    foreach ($urls as $url) {
+        [$res, $code, $err] = http_fetch_dbg($url);
+        echo "fetch {$url} http={$code} len=".strlen($res ?: '')." err={$err}\n";
+        if ($res && $code === 200 && strlen($res) > 500) { $html = $res; break; }
+    }
     if (!$html) return [];
+
     preg_match_all('/<div class="tgme_widget_message_text[^"]*"[^>]*>(.*?)<\/div>/is', $html, $m);
     $msgs = [];
     if (!empty($m[1])) {
         foreach (array_reverse($m[1]) as $item) {
-            // convert <br> to newline before stripping tags so lines stay separate
-            $item = preg_replace('/<br\s*\/?>/i', "\n", $item);
+            $item   = preg_replace('/<br\s*\/?>/i', "\n", $item);
             $decoded = html_entity_decode(strip_tags($item), ENT_QUOTES|ENT_HTML5, 'UTF-8');
-            // collapse spaces/tabs only, preserve newlines
-            $txt = trim(preg_replace('/[ \t]+/', ' ', $decoded));
+            $txt    = trim(preg_replace('/[ \t]+/', ' ', $decoded));
             if ($txt) { $msgs[] = $txt; if (count($msgs) >= $limit) break; }
         }
     }
@@ -135,14 +156,8 @@ function parse_source(array $msgs): array {
     return [$buy, $sell];
 }
 
-function parse_dest(array $msgs): ?float {
-    foreach ($msgs as $t) { $p = num_from($t); if ($p !== null) return $p; }
-    return null;
-}
-
 function num_from(string $t): ?float {
     $c = str_replace([',','٬','،','.'], '', $t);
-    // use lookahead/lookbehind to avoid \b Unicode issues
     return preg_match('/(?<!\d)(\d{4,})(?!\d)/', $c, $m) ? (float)$m[1] : null;
 }
 
@@ -185,7 +200,7 @@ function http_fetch(string $url): string|false {
 }
 function http_fetch_dbg(string $url): array {
     $ch=curl_init($url);
-    curl_setopt_array($ch,[CURLOPT_RETURNTRANSFER=>1,CURLOPT_TIMEOUT=>20,CURLOPT_USERAGENT=>'Mozilla/5.0 (compatible)',CURLOPT_FOLLOWLOCATION=>1,CURLOPT_SSL_VERIFYPEER=>1]);
+    curl_setopt_array($ch,[CURLOPT_RETURNTRANSFER=>1,CURLOPT_TIMEOUT=>20,CURLOPT_USERAGENT=>'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',CURLOPT_FOLLOWLOCATION=>1,CURLOPT_SSL_VERIFYPEER=>1]);
     $r=curl_exec($ch); $code=curl_getinfo($ch,CURLINFO_HTTP_CODE); $err=curl_error($ch); curl_close($ch);
     return [$r ?: false, $code, $err];
 }
