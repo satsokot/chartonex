@@ -60,9 +60,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if ($a === 'run_now' && !empty($_SESSION['ok'])) {
-        ob_start(); run_check(); $out = ob_get_clean();
+        $cron_token = cfg('cron_token');
+        $proto = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+        $base  = rtrim(dirname($_SERVER['PHP_SELF']), '/');
+        $cron_url_now = $proto . '://' . $_SERVER['HTTP_HOST'] . $base . '/cron.php?token=' . urlencode($cron_token);
+        $ch = curl_init($cron_url_now);
+        curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER=>1, CURLOPT_TIMEOUT=>30, CURLOPT_FOLLOWLOCATION=>1,
+            CURLOPT_USERAGENT=>'Chartonex-Admin/1.0']);
+        $out = curl_exec($ch);
+        $err = curl_error($ch);
+        curl_close($ch);
         header('Content-Type: application/json');
-        echo json_encode(['ok'=>true,'out'=>$out]); exit;
+        echo json_encode(['ok'=>true,'out'=>($out ?: ('curl error: '.$err))]); exit;
     }
 }
 
