@@ -9,7 +9,6 @@ import (
 	"log"
 	"math"
 	"net/http"
-	"net/url"
 	"os"
 	"regexp"
 	"strconv"
@@ -31,7 +30,6 @@ type Config struct {
 	Button1URL       string
 	Button2Text      string
 	Button2URL       string
-	ProxyURL         string
 }
 
 func loadConfig(path string) (Config, error) {
@@ -92,8 +90,6 @@ func loadConfig(path string) (Config, error) {
 			cfg.Button2Text = v
 		case "button2_url":
 			cfg.Button2URL = v
-		case "proxy_url":
-			cfg.ProxyURL = v
 		}
 	}
 	return cfg, sc.Err()
@@ -125,23 +121,6 @@ func saveState(path string, s State) {
 // ─── HTTP ──────────────────────────────────────────────────────────────────
 
 var client = &http.Client{Timeout: 20 * time.Second}
-
-func setupClient(proxyURL string) {
-	if proxyURL == "" {
-		client = &http.Client{Timeout: 20 * time.Second}
-		return
-	}
-	pURL, err := url.Parse(proxyURL)
-	if err != nil {
-		logPrintf("خطا در آدرس پروکسی: %v", err)
-		return
-	}
-	client = &http.Client{
-		Timeout:   20 * time.Second,
-		Transport: &http.Transport{Proxy: http.ProxyURL(pURL)},
-	}
-	logPrintf("پروکسی فعال: %s", proxyURL)
-}
 
 func httpGet(url string) (string, int, error) {
 	req, err := http.NewRequest("GET", url, nil)
@@ -485,7 +464,6 @@ func main() {
 		return
 	}
 
-	setupClient(cfg.ProxyURL)
 	logPrintf("کانال مبدا  : @%s", cfg.SourceChannel)
 	logPrintf("کانال مقصد  : @%s", cfg.DestChannel)
 	logPrintf("بازه بررسی  : هر %d دقیقه", cfg.IntervalMin)
