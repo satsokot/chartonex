@@ -65,9 +65,9 @@ func loadConfig(path string) (Config, error) {
 		case "bot_token":
 			cfg.BotToken = v
 		case "source_channel":
-			cfg.SourceChannel = strings.TrimPrefix(v, "@")
+			cfg.SourceChannel = cleanChannel(v)
 		case "dest_channel":
-			cfg.DestChannel = strings.TrimPrefix(v, "@")
+			cfg.DestChannel = cleanChannel(v)
 		case "check_interval_minutes":
 			if n, err := strconv.Atoi(v); err == nil {
 				cfg.IntervalMin = n
@@ -121,6 +121,22 @@ func saveState(path string, s State) {
 // ─── HTTP ──────────────────────────────────────────────────────────────────
 
 var client = &http.Client{Timeout: 20 * time.Second}
+
+// cleanChannel هر فرمتی از آدرس کانال را به نام خالص تبدیل می‌کند
+// https://t.me/cafebtc  →  cafebtc
+// @cafebtc              →  cafebtc
+// t.me/cafebtc          →  cafebtc
+func cleanChannel(v string) string {
+	v = strings.TrimSpace(v)
+	for _, prefix := range []string{"https://t.me/", "http://t.me/", "https://telegram.me/", "t.me/", "telegram.me/"} {
+		if strings.HasPrefix(v, prefix) {
+			v = strings.TrimPrefix(v, prefix)
+			break
+		}
+	}
+	v = strings.TrimPrefix(v, "@")
+	return strings.TrimRight(v, "/")
+}
 
 func httpGet(url string) (string, int, error) {
 	req, err := http.NewRequest("GET", url, nil)
