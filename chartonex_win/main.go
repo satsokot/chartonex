@@ -395,9 +395,17 @@ func checkInternet() bool {
 	return true
 }
 
+// maskToken توکن ربات را برای لاگ ماسک می‌کند
+func maskToken(token string) string {
+	if len(token) < 10 {
+		return "***"
+	}
+	return token[:6] + "***" + token[len(token)-4:]
+}
+
 // checkBot: توکن ربات رو با getMe تست می‌کنه
 func checkBot(token string) (string, bool) {
-	logPrintf("[2/3] بررسی اتصال ربات تلگرام...")
+	logPrintf("[2/3] بررسی اتصال ربات تلگرام (توکن: %s)...", maskToken(token))
 	r, err := tgPost(token, "getMe", map[string]interface{}{})
 	if err != nil {
 		logPrintf("      ✗ خطا در اتصال به api.telegram.org — %v", err)
@@ -586,20 +594,26 @@ func main() {
 	logPrintf("کسر قیمت    : %s تومان", fmtPrice(cfg.PriceDeduction))
 	logPrintf("──────────────────────────────────")
 
-	// بررسی‌های اولیه هنگام راه‌اندازی
+	// بررسی‌های اولیه — تا اتصال برقرار نشه هر 15 ثانیه امتحان می‌کنه
 	logPrintf("در حال بررسی اتصال‌ها...")
-	if !checkInternet() {
-		logPrintf("✗ اینترنت متصل نیست — برنامه متوقف شد")
-		pause()
-		return
+	var botUsername string
+	for attempt := 1; ; attempt++ {
+		logPrintf("--- تلاش %d ---", attempt)
+		if !checkInternet() {
+			logPrintf("      ⏳ %d ثانیه صبر می‌کنم...", 15)
+			time.Sleep(15 * time.Second)
+			continue
+		}
+		var botOk bool
+		botUsername, botOk = checkBot(cfg.BotToken)
+		if !botOk {
+			logPrintf("      ⏳ %d ثانیه صبر می‌کنم...", 15)
+			time.Sleep(15 * time.Second)
+			continue
+		}
+		checkTelegram(cfg.SourceChannel)
+		break
 	}
-	botUsername, botOk := checkBot(cfg.BotToken)
-	if !botOk {
-		logPrintf("✗ ربات در دسترس نیست — config.ini را بررسی کنید")
-		pause()
-		return
-	}
-	checkTelegram(cfg.SourceChannel)
 
 	// پیام شروع به کار
 	logPrintf("ارسال پیام شروع به کار به کانال مقصد...")
