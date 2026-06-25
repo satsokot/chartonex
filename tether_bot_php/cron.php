@@ -54,7 +54,10 @@ function run_check(): void {
 
     // خواندن کانال مبدا
     $src_msgs = tg_channel_msgs($src_ch, 10);
+    echo "src_msgs_count=".count($src_msgs)."\n";
+    foreach ($src_msgs as $i=>$m) echo "src[$i]: ".mb_substr($m,0,80)."\n";
     [$buy, $sell] = parse_source($src_msgs);
+    echo "buy={$buy} sell={$sell}\n";
     $avg = ($buy !== null && $sell !== null) ? ($buy+$sell)/2 : ($buy ?? $sell);
 
     if ($avg === null) {
@@ -104,7 +107,11 @@ function tg_channel_msgs(string $channel, int $limit): array {
     $msgs = [];
     if (!empty($m[1])) {
         foreach (array_reverse($m[1]) as $item) {
-            $txt = trim(preg_replace('/\s+/', ' ', html_entity_decode(strip_tags($item), ENT_QUOTES|ENT_HTML5, 'UTF-8')));
+            // convert <br> to newline before stripping tags so lines stay separate
+            $item = preg_replace('/<br\s*\/?>/i', "\n", $item);
+            $decoded = html_entity_decode(strip_tags($item), ENT_QUOTES|ENT_HTML5, 'UTF-8');
+            // collapse spaces/tabs only, preserve newlines
+            $txt = trim(preg_replace('/[ \t]+/', ' ', $decoded));
             if ($txt) { $msgs[] = $txt; if (count($msgs) >= $limit) break; }
         }
     }
@@ -131,8 +138,9 @@ function parse_dest(array $msgs): ?float {
 }
 
 function num_from(string $t): ?float {
-    $c = str_replace([',','٬','،'], '', $t);
-    return preg_match('/\b(\d{4,})\b/', $c, $m) ? (float)$m[1] : null;
+    $c = str_replace([',','٬','،','.'], '', $t);
+    // use lookahead/lookbehind to avoid \b Unicode issues
+    return preg_match('/(?<!\d)(\d{4,})(?!\d)/', $c, $m) ? (float)$m[1] : null;
 }
 
 function build_msg(float $price, string $tpl): string {
