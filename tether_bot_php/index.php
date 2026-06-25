@@ -214,9 +214,14 @@ tr:hover td{background:rgba(255,255,255,.02)}
       <ol>
         <li>برو به <strong>Advanced Features → Cronjobs</strong></li>
         <li>روی <strong>Add Cronjob</strong> کلیک کن</li>
-        <li>در بخش Command بنویس:<br>
-          <code>wget -q -O /dev/null "<?=htmlspecialchars($cron_url)?>"</code></li>
-        <li>زمان: <code>*/5 * * * *</code> (هر ۵ دقیقه)</li>
+        <li>در بخش <strong>Command</strong> یکی از دستورات زیر را وارد کن:<br><br>
+          <strong>گزینه ۱ (wget):</strong><br>
+          <div class="cbox" style="margin:6px 0 10px"><code id="cmd1">/usr/bin/wget -q -O /dev/null "<?=htmlspecialchars($cron_url)?>"</code><button class="btn btn-o btn-sm" onclick="copyText('cmd1')">کپی</button></div>
+          <strong>گزینه ۲ (curl):</strong><br>
+          <div class="cbox" style="margin:6px 0"><code id="cmd2">/usr/local/bin/curl --silent -L "<?=htmlspecialchars($cron_url)?>"</code><button class="btn btn-o btn-sm" onclick="copyText('cmd2')">کپی</button></div>
+        </li>
+        <li>در بخش زمان‌بندی وارد کن: <code>*/5 * * * *</code> (هر ۵ دقیقه)<br>
+          <span style="font-size:12px;color:var(--tx3)">یا فیلدهای جداگانه: Minute=<strong>*/5</strong> و بقیه = <strong>*</strong></span></li>
         <li>ذخیره کن</li>
       </ol>
     </div>
@@ -338,6 +343,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
 <script>
 function toast(m,ok){var t=document.getElementById('toast');t.textContent=m;t.className='toast '+(ok?'tok':'ter');t.style.display='block';setTimeout(function(){t.style.display='none'},3000)}
 function cp(){navigator.clipboard.writeText(document.getElementById('curl').textContent.trim()).then(function(){toast('کپی شد',true)})}
+function copyText(id){navigator.clipboard.writeText(document.getElementById(id).textContent.trim()).then(function(){toast('کپی شد',true)})}
 function testBot(){
   var fd=new FormData();fd.append('action','test_bot');
   fetch('index.php',{method:'POST',body:fd}).then(r=>r.json()).then(d=>{
