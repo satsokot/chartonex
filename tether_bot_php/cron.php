@@ -36,6 +36,30 @@ function run_check(): void {
         ]);
     }
 
+    // ── تست اتصال اینترنت ─────────────────────────────────────────────────
+    $test_urls = [
+        'https://api.telegram.org'         => 'Telegram API',
+        'https://t.me'                     => 'Telegram t.me',
+        'https://telegram.me'              => 'telegram.me',
+        'https://www.google.com'           => 'Google',
+        'https://1.1.1.1'                  => 'Cloudflare DNS',
+        'https://example.com'              => 'Example.com',
+    ];
+    echo "=== Internet Connectivity Test ===\n";
+    foreach ($test_urls as $url => $label) {
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER=>1, CURLOPT_TIMEOUT=>8,
+            CURLOPT_NOBODY=>1, CURLOPT_FOLLOWLOCATION=>1,
+            CURLOPT_USERAGENT=>'Mozilla/5.0', CURLOPT_SSL_VERIFYPEER=>0]);
+        curl_exec($ch);
+        $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $err  = curl_error($ch);
+        curl_close($ch);
+        $status = ($code > 0) ? "OK (HTTP {$code})" : "FAIL ({$err})";
+        echo str_pad($label, 20) . " => {$status}\n";
+    }
+    echo "==================================\n";
+
     $src_ch  = qget($pdo, 'source_channel');
     $dst_ch  = qget($pdo, 'dest_channel');
     $token   = qget($pdo, 'bot_token');
