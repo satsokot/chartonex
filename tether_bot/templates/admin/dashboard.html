@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>پنل ادمین - Chartonex</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="dashboard-page">
+
+<!-- Sidebar -->
+<aside class="sidebar">
+  <div class="sidebar-header">
+    <span class="logo-icon">💵</span>
+    <span class="logo-text">Chartonex</span>
+  </div>
+  <nav class="sidebar-nav">
+    <a href="#section-status" class="nav-item active">وضعیت ربات</a>
+    <a href="#section-channels" class="nav-item">کانال‌ها</a>
+    <a href="#section-thresholds" class="nav-item">آستانه‌ها</a>
+    <a href="#section-message" class="nav-item">قالب پیام</a>
+    <a href="#section-telegram-auth" class="nav-item">اتصال تلگرام</a>
+    <a href="#section-logs" class="nav-item">لاگ‌ها</a>
+  </nav>
+  <div class="sidebar-footer">
+    <a href="{{ url_for('logout') }}" class="btn btn-outline btn-sm">خروج</a>
+  </div>
+</aside>
+
+<!-- Main Content -->
+<main class="main-content">
+
+  <!-- Flash messages -->
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}
+    <div class="alert alert-{{ category }}">{{ message }}</div>
+    {% endfor %}
+  {% endwith %}
+
+  <!-- Toast -->
+  <div id="toast" class="toast hidden"></div>
+
+  <!-- ===== STATUS SECTION ===== -->
+  <section id="section-status" class="card">
+    <div class="card-header">
+      <h2>وضعیت ربات</h2>
+      <div class="status-badge" id="status-badge">
+        {% if is_running %}<span class="badge badge-green">فعال</span>{% else %}<span class="badge badge-red">متوقف</span>{% endif %}
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="stats-grid">
+        <div class="stat-box">
+          <label>بررسی بعدی</label>
+          <span id="next-run">—</span>
+        </div>
+        <div class="stat-box">
+          <label>آخرین قیمت مبدا (میانگین)</label>
+          <span id="last-avg">—</span>
+        </div>
+        <div class="stat-box">
+          <label>آخرین قیمت مقصد</label>
+          <span id="last-dest">—</span>
+        </div>
+        <div class="stat-box">
+          <label>آخرین اختلاف</label>
+          <span id="last-diff">—</span>
+        </div>
+        <div class="stat-box">
+          <label>آخرین قیمت ارسالی</label>
+          <span id="last-sent">—</span>
+        </div>
+        <div class="stat-box">
+          <label>آخرین عملیات</label>
+          <span id="last-action">—</span>
+        </div>
+      </div>
+      <div class="btn-group mt-16">
+        <button class="btn btn-green" id="btn-start" onclick="botStart()" {% if is_running %}disabled{% endif %}>
+          ▶ شروع ربات
+        </button>
+        <button class="btn btn-red" id="btn-stop" onclick="botStop()" {% if not is_running %}disabled{% endif %}>
+          ■ توقف ربات
+        </button>
+        <button class="btn btn-outline" onclick="botRunNow()">
+          ↻ اجرای فوری
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== SETTINGS FORM ===== -->
+  <form method="post" action="{{ url_for('save_settings') }}" id="settings-form">
+
+    <!-- Channels -->
+    <section id="section-channels" class="card">
+      <div class="card-header"><h2>تنظیمات کانال‌ها</h2></div>
+      <div class="card-body">
+        <div class="form-row">
+          <div class="form-group">
+            <label>کانال مبدا <span class="hint">(نام کاربری مثل @channel یا آیدی عددی)</span></label>
+            <input type="text" name="source_channel" value="{{ settings.get('source_channel','') }}"
+                   placeholder="@source_channel" dir="ltr">
+          </div>
+          <div class="form-group">
+            <label>کانال مقصد <span class="hint">(باید ربات ادمین آن باشد)</span></label>
+            <input type="text" name="dest_channel" value="{{ settings.get('dest_channel','') }}"
+                   placeholder="@dest_channel" dir="ltr">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>فاصله زمانی بررسی (دقیقه)</label>
+          <input type="number" name="check_interval_minutes"
+                 value="{{ settings.get('check_interval_minutes','5') }}"
+                 min="1" max="1440" style="max-width:120px">
+        </div>
+      </div>
+    </section>
+
+    <!-- Thresholds -->
+    <section id="section-thresholds" class="card">
+      <div class="card-header"><h2>آستانه‌های قیمتی</h2></div>
+      <div class="card-body">
+        <div class="form-row">
+          <div class="form-group">
+            <label>آستانه اختلاف <span class="hint">(اگر اختلاف بیشتر از این مقدار بود، ارسال می‌شود)</span></label>
+            <div class="input-with-unit">
+              <input type="number" name="difference_threshold"
+                     value="{{ settings.get('difference_threshold','300') }}"
+                     min="0" step="10" placeholder="300">
+              <span class="unit">تومان</span>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>مقدار کسر <span class="hint">(از میانگین کسر می‌شود)</span></label>
+            <div class="input-with-unit">
+              <input type="number" name="price_deduction"
+                     value="{{ settings.get('price_deduction','100') }}"
+                     min="0" step="10" placeholder="100">
+              <span class="unit">تومان</span>
+            </div>
+          </div>
+        </div>
+        <!-- Visual formula -->
+        <div class="formula-box">
+          <div class="formula">
+            <span>قیمت ارسالی</span>
+            <span class="op">=</span>
+            <span class="val">میانگین (خرید+فروش) ÷ ۲</span>
+            <span class="op">−</span>
+            <span class="val" id="formula-deduction">{{ settings.get('price_deduction','100') }}</span>
+            <span class="unit">تومان</span>
+          </div>
+          <p class="formula-note">
+            فقط زمانی ارسال می‌شود که اختلاف قیمت مقصد با میانگین بیشتر از
+            <strong id="formula-threshold">{{ settings.get('difference_threshold','300') }}</strong> تومان باشد
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Message Template -->
+    <section id="section-message" class="card">
+      <div class="card-header"><h2>قالب پیام و دکمه‌ها</h2></div>
+      <div class="card-body">
+        <div class="form-group">
+          <label>قالب پیام <span class="hint">({price} = قیمت، {date} = تاریخ شمسی)</span></label>
+          <textarea name="message_template" rows="4" dir="rtl">{{ settings.get('message_template','') }}</textarea>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>متن دکمه ۱</label>
+            <input type="text" name="button1_text" value="{{ settings.get('button1_text','دانلود اپلیکیشن') }}">
+          </div>
+          <div class="form-group">
+            <label>لینک دکمه ۱</label>
+            <input type="url" name="button1_url" value="{{ settings.get('button1_url','') }}"
+                   placeholder="https://..." dir="ltr">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>متن دکمه ۲</label>
+            <input type="text" name="button2_text" value="{{ settings.get('button2_text','پشتیبانی') }}">
+          </div>
+          <div class="form-group">
+            <label>لینک دکمه ۲</label>
+            <input type="url" name="button2_url" value="{{ settings.get('button2_url','') }}"
+                   placeholder="https://t.me/..." dir="ltr">
+          </div>
+        </div>
+
+        <!-- Telegram message preview -->
+        <div class="tg-preview">
+          <div class="tg-preview-header">پیش‌نمایش پیام تلگرام</div>
+          <div class="tg-message">
+            <div class="tg-text" id="preview-text">
+              قیمت تتر : <strong>167,500</strong> تومان 💵 USDT<br>
+              ─────────────────<br>
+              تاریخ: ۱۴۰۵/۰۴/۰۴
+            </div>
+            <div class="tg-buttons" id="preview-buttons">
+              <a class="tg-btn glass-btn" id="preview-btn1">{{ settings.get('button1_text','دانلود اپلیکیشن') }}</a>
+              <a class="tg-btn glass-btn" id="preview-btn2">{{ settings.get('button2_text','پشتیبانی') }}</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Telegram Auth -->
+    <section id="section-telegram-auth" class="card">
+      <div class="card-header"><h2>اتصال به تلگرام (Telethon)</h2></div>
+      <div class="card-body">
+        <p class="info-text">
+          برای خواندن کانال‌های عمومی نیاز به API تلگرام دارید.
+          از <a href="https://my.telegram.org" target="_blank" dir="ltr">my.telegram.org</a> بگیرید.
+        </p>
+        <div class="form-row">
+          <div class="form-group">
+            <label>API ID</label>
+            <input type="text" name="api_id" value="{{ settings.get('api_id','') }}" dir="ltr" placeholder="12345678">
+          </div>
+          <div class="form-group">
+            <label>API Hash</label>
+            <input type="text" name="api_hash" value="{{ settings.get('api_hash','') }}" dir="ltr"
+                   placeholder="abcdef1234...">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>شماره تلفن</label>
+            <input type="text" name="phone" value="{{ settings.get('phone','') }}" dir="ltr"
+                   placeholder="+989123456789">
+          </div>
+          <div class="form-group">
+            <label>توکن ربات (Bot Token)</label>
+            <input type="text" name="bot_token" value="{{ settings.get('bot_token','') }}" dir="ltr"
+                   placeholder="1234567890:ABC...">
+          </div>
+        </div>
+        <div class="btn-group">
+          <button type="button" class="btn btn-outline" onclick="saveAndConnect()">
+            ذخیره و اتصال به تلگرام
+          </button>
+          <button type="button" class="btn btn-outline" onclick="testBot()">
+            تست توکن ربات
+          </button>
+        </div>
+
+        <!-- OTP verification -->
+        <div id="otp-section" class="otp-box hidden">
+          <p>کد تأیید به شماره شما ارسال شد:</p>
+          <div class="form-row">
+            <div class="form-group">
+              <label>کد تأیید</label>
+              <input type="text" id="otp-code" dir="ltr" placeholder="12345" maxlength="6">
+            </div>
+            <div class="form-group" id="password-group" style="display:none">
+              <label>رمز دو مرحله‌ای</label>
+              <input type="password" id="otp-password" placeholder="••••••">
+            </div>
+          </div>
+          <button type="button" class="btn btn-primary" onclick="verifyOtp()">تأیید کد</button>
+        </div>
+      </div>
+    </section>
+
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary btn-lg">💾 ذخیره همه تنظیمات</button>
+    </div>
+
+  </form>
+
+  <!-- ===== LOGS SECTION ===== -->
+  <section id="section-logs" class="card">
+    <div class="card-header">
+      <h2>لاگ‌های اخیر</h2>
+      <button class="btn btn-sm btn-outline" onclick="loadLogs()">↻ بروزرسانی</button>
+    </div>
+    <div class="card-body">
+      <div class="table-wrapper">
+        <table class="log-table">
+          <thead>
+            <tr>
+              <th>زمان</th>
+              <th>خرید مبدا</th>
+              <th>فروش مبدا</th>
+              <th>میانگین</th>
+              <th>قیمت مقصد</th>
+              <th>اختلاف</th>
+              <th>ارسالی</th>
+              <th>عملیات</th>
+            </tr>
+          </thead>
+          <tbody id="log-tbody">
+            {% for log in logs %}
+            <tr>
+              <td>{{ log.created_at.strftime('%m/%d %H:%M') if log.created_at else '—' }}</td>
+              <td>{{ "{:,.0f}".format(log.source_buy) if log.source_buy else '—' }}</td>
+              <td>{{ "{:,.0f}".format(log.source_sell) if log.source_sell else '—' }}</td>
+              <td>{{ "{:,.0f}".format(log.source_avg) if log.source_avg else '—' }}</td>
+              <td>{{ "{:,.0f}".format(log.dest_price) if log.dest_price else '—' }}</td>
+              <td class="{{ 'text-red' if log.difference and log.difference > 300 else '' }}">
+                {{ "{:,.0f}".format(log.difference) if log.difference else '—' }}
+              </td>
+              <td class="text-green">{{ "{:,.0f}".format(log.sent_price) if log.sent_price else '—' }}</td>
+              <td><span class="action-badge action-{{ log.action_taken }}">{{ log.action_taken }}</span></td>
+            </tr>
+            {% else %}
+            <tr><td colspan="8" class="text-center text-muted">لاگی موجود نیست</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
