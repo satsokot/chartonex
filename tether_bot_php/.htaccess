@@ -1,0 +1,8 @@
+# جلوگیری از دسترسی مستقیم به پوشه data
+Options -Indexes
+
+# محافظت از پوشه data
+<FilesMatch "\.(db|sqlite|sqlite3)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
