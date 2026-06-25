@@ -50,8 +50,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Run cron now
     if ($action === 'run_now' && is_logged_in()) {
         ob_start();
-        $_SERVER['argv'] = [];
-        define('PHP_SAPI_OVERRIDE', 'cli');
+        $_GET['token'] = setting_get('cron_token');
         require __DIR__ . '/cron.php';
         $output = ob_get_clean();
         header('Content-Type: application/json');
@@ -403,9 +402,3 @@ $cron_url  = (isset($_SERVER['HTTPS']) ? 'https' : 'http') . '://' . ($_SERVER['
 <script src="assets/main.js"></script>
 </body>
 </html>
-<?php
-
-function jalali_date(string $format = 'Y/m/d', int $timestamp = 0): string {
-    require_once __DIR__ . '/includes/parser.php';
-    return \jalali_date($format, $timestamp);
-}

@@ -4,8 +4,10 @@ define('DB_PATH', __DIR__ . '/../data/tether_bot.db');
 define('DATA_DIR', __DIR__ . '/../data/');
 
 // Session
-session_name('chartonex_admin');
-session_start();
+if (session_status() === PHP_SESSION_NONE) {
+    session_name('chartonex_admin');
+    session_start();
+}
 
 // Timezone
 date_default_timezone_set('Asia/Tehran');
