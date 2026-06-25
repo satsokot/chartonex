@@ -403,12 +403,20 @@ func maskToken(token string) string {
 	return token[:6] + "***" + token[len(token)-4:]
 }
 
+// maskErrToken توکن را از رشته خطا (که ممکن است URL کامل داشته باشد) حذف می‌کند
+func maskErrToken(token, errMsg string) string {
+	if token == "" {
+		return errMsg
+	}
+	return strings.ReplaceAll(errMsg, token, maskToken(token))
+}
+
 // checkBot: توکن ربات رو با getMe تست می‌کنه
 func checkBot(token string) (string, bool) {
 	logPrintf("[2/3] بررسی اتصال ربات تلگرام (توکن: %s)...", maskToken(token))
 	r, err := tgPost(token, "getMe", map[string]interface{}{})
 	if err != nil {
-		logPrintf("      ✗ خطا در اتصال به api.telegram.org — %v", err)
+		logPrintf("      ✗ خطا در اتصال به api.telegram.org — %s", maskErrToken(token, err.Error()))
 		return "", false
 	}
 	if ok, _ := r["ok"].(bool); !ok {
@@ -459,7 +467,7 @@ func sendStartupMsg(cfg Config, botUsername string) {
 	}
 	r, err := tgPost(cfg.BotToken, "sendMessage", pl)
 	if err != nil {
-		logPrintf("      خطا در ارسال پیام شروع: %v", err)
+		logPrintf("      خطا در ارسال پیام شروع: %s", maskErrToken(cfg.BotToken, err.Error()))
 		return
 	}
 	if ok, _ := r["ok"].(bool); ok {
@@ -549,7 +557,7 @@ func runCycle(cfg Config, state *State) {
 
 	msgID, err := tgSend(cfg, msgText, state.LastMessageID)
 	if err != nil {
-		logPrintf("✗ خطا در ارسال: %v", err)
+		logPrintf("✗ خطا در ارسال: %s", maskErrToken(cfg.BotToken, err.Error()))
 		return
 	}
 
