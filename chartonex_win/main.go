@@ -381,21 +381,120 @@ func logPrintf(format string, args ...interface{}) {
 	logger.Printf(format, args...)
 }
 
+// ─── Startup Checks ────────────────────────────────────────────────────────
+
+// checkInternet: یه سایت عمومی رو پینگ می‌کنه
+func checkInternet() bool {
+	logPrintf("[1/3] بررسی اتصال اینترنت...")
+	_, code, err := httpGet("https://example.com")
+	if err != nil || code == 0 {
+		logPrintf("      ✗ اینترنت متصل نیست — %v", err)
+		return false
+	}
+	logPrintf("      ✓ اینترنت متصل است (HTTP %d)", code)
+	return true
+}
+
+// checkBot: توکن ربات رو با getMe تست می‌کنه
+func checkBot(token string) (string, bool) {
+	logPrintf("[2/3] بررسی اتصال ربات تلگرام...")
+	r, err := tgPost(token, "getMe", map[string]interface{}{})
+	if err != nil {
+		logPrintf("      ✗ خطا در اتصال به api.telegram.org — %v", err)
+		return "", false
+	}
+	if ok, _ := r["ok"].(bool); !ok {
+		desc, _ := r["description"].(string)
+		logPrintf("      ✗ توکن ربات نامعتبر است — %s", desc)
+		return "", false
+	}
+	result, _ := r["result"].(map[string]interface{})
+	username, _ := result["username"].(string)
+	logPrintf("      ✓ ربات متصل است: @%s", username)
+	return username, true
+}
+
+// checkTelegram: دسترسی به t.me را تست می‌کنه
+func checkTelegram(channel string) bool {
+	logPrintf("[3/3] بررسی دسترسی به کانال مبدا...")
+	_, code, err := httpGet("https://t.me/s/" + channel)
+	if err != nil || code == 0 {
+		logPrintf("      ✗ t.me در دسترس نیست — %v", err)
+		return false
+	}
+	logPrintf("      ✓ کانال @%s در دسترس است (HTTP %d)", channel, code)
+	return true
+}
+
+// sendStartupMsg: پیام شروع به کار را به کانال مقصد ارسال می‌کنه
+func sendStartupMsg(cfg Config, botUsername string) {
+	text := fmt.Sprintf(
+		"🟢 <b>Chartonex شروع به کار کرد</b>\n"+
+			"─────────────────\n"+
+			"🤖 ربات: @%s\n"+
+			"📥 مبدا: @%s\n"+
+			"📤 مقصد: @%s\n"+
+			"⏱ بازه: هر %d دقیقه\n"+
+			"📊 آستانه: %s تومان\n"+
+			"🕐 زمان: %s",
+		botUsername,
+		cfg.SourceChannel,
+		cfg.DestChannel,
+		cfg.IntervalMin,
+		fmtPrice(cfg.DiffThreshold),
+		jalaliNow(),
+	)
+	pl := map[string]interface{}{
+		"chat_id":    "@" + cfg.DestChannel,
+		"text":       text,
+		"parse_mode": "HTML",
+	}
+	r, err := tgPost(cfg.BotToken, "sendMessage", pl)
+	if err != nil {
+		logPrintf("      خطا در ارسال پیام شروع: %v", err)
+		return
+	}
+	if ok, _ := r["ok"].(bool); ok {
+		logPrintf("      ✓ پیام شروع به کار ارسال شد")
+	} else {
+		desc, _ := r["description"].(string)
+		logPrintf("      ✗ ارسال پیام شروع ناموفق: %s", desc)
+	}
+}
+
 // ─── Core Logic ────────────────────────────────────────────────────────────
 
-func runCheck(cfg Config, state *State) {
-	logPrintf("────────────────────────────────")
-	logPrintf("شروع بررسی قیمت...")
+func runCycle(cfg Config, state *State) {
+	logPrintf("══════════════════════════════════")
+	logPrintf("شروع چرخه بررسی — %s", jalaliNow())
 
+	// ① اینترنت
+	if !checkInternet() {
+		logPrintf("چرخه لغو شد — اینترنت متصل نیست")
+		return
+	}
+
+	// ② ربات
+	_, botOk := checkBot(cfg.BotToken)
+	if !botOk {
+		logPrintf("چرخه لغو شد — ربات در دسترس نیست")
+		return
+	}
+
+	// ③ کانال مبدا
+	checkTelegram(cfg.SourceChannel)
+
+	// ④ بررسی قیمت
+	logPrintf("──────────────────────────────────")
+	logPrintf("خواندن قیمت از کانال مبدا...")
 	msgs := fetchMsgs(cfg.SourceChannel, 10)
-	logPrintf("پیام‌های دریافتی از مبدا: %d عدد", len(msgs))
+	logPrintf("پیام‌های دریافتی: %d عدد", len(msgs))
 	for i, m := range msgs {
 		logPrintf("  [%d] %s", i, trunc(m, 100))
 	}
 
 	buy, sell, buyOk, sellOk := parseSource(msgs)
 
-	// fallback به قیمت‌های ذخیره‌شده
 	if !buyOk && state.LastSourceBuy > 0 {
 		buy, buyOk = state.LastSourceBuy, true
 		logPrintf("خرید از حافظه: %.0f", buy)
@@ -404,7 +503,6 @@ func runCheck(cfg Config, state *State) {
 		sell, sellOk = state.LastSourceSell, true
 		logPrintf("فروش از حافظه: %.0f", sell)
 	}
-
 	if buyOk {
 		state.LastSourceBuy = buy
 	}
@@ -413,7 +511,7 @@ func runCheck(cfg Config, state *State) {
 	}
 
 	if !buyOk && !sellOk {
-		logPrintf("خطا: قیمت از کانال مبدا دریافت نشد")
+		logPrintf("✗ قیمت از کانال مبدا دریافت نشد")
 		return
 	}
 
@@ -429,21 +527,21 @@ func runCheck(cfg Config, state *State) {
 
 	destPrice := state.LastSentPrice
 	diff := math.Abs(destPrice - avg)
-	logPrintf("میانگین: %.0f | قیمت مقصد: %.0f | اختلاف: %.0f | آستانه: %.0f",
-		avg, destPrice, diff, cfg.DiffThreshold)
+	logPrintf("خرید: %.0f | فروش: %.0f | میانگین: %.0f", buy, sell, avg)
+	logPrintf("قیمت مقصد: %.0f | اختلاف: %.0f | آستانه: %.0f", destPrice, diff, cfg.DiffThreshold)
 
 	if diff <= cfg.DiffThreshold {
-		logPrintf("نتیجه: اختلاف کمتر از آستانه — ارسال نشد")
+		logPrintf("✓ اختلاف کمتر از آستانه — ارسال نشد")
 		return
 	}
 
 	newPrice := math.Round(avg - cfg.PriceDeduction)
 	msgText := buildMsg(newPrice, cfg.MsgTemplate)
-	logPrintf("ارسال قیمت جدید: %.0f ...", newPrice)
+	logPrintf("ارسال قیمت جدید: %s تومان ...", fmtPrice(newPrice))
 
 	msgID, err := tgSend(cfg, msgText, state.LastMessageID)
 	if err != nil {
-		logPrintf("خطا در ارسال به تلگرام: %v", err)
+		logPrintf("✗ خطا در ارسال: %v", err)
 		return
 	}
 
@@ -465,17 +563,18 @@ func main() {
 
 	logger = log.New(io.MultiWriter(os.Stdout, logFile), "", log.Ldate|log.Ltime|log.Lmsgprefix)
 
-	logPrintf("=== Chartonex v1.0 شروع به کار کرد ===")
+	logPrintf("╔══════════════════════════════════╗")
+	logPrintf("║     Chartonex v1.0 راه‌اندازی    ║")
+	logPrintf("╚══════════════════════════════════╝")
 
 	cfg, err := loadConfig("config.ini")
 	if err != nil {
-		logPrintf("خطا: فایل config.ini پیدا نشد — %v", err)
-		logPrintf("فایل config.ini را در کنار chartonex.exe قرار دهید")
+		logPrintf("✗ فایل config.ini پیدا نشد — %v", err)
 		pause()
 		return
 	}
 	if cfg.BotToken == "" || cfg.SourceChannel == "" || cfg.DestChannel == "" {
-		logPrintf("خطا: bot_token، source_channel و dest_channel را در config.ini وارد کنید")
+		logPrintf("✗ bot_token، source_channel و dest_channel را در config.ini وارد کنید")
 		pause()
 		return
 	}
@@ -483,23 +582,44 @@ func main() {
 	logPrintf("کانال مبدا  : @%s", cfg.SourceChannel)
 	logPrintf("کانال مقصد  : @%s", cfg.DestChannel)
 	logPrintf("بازه بررسی  : هر %d دقیقه", cfg.IntervalMin)
-	logPrintf("آستانه اختلاف: %.0f تومان", cfg.DiffThreshold)
-	logPrintf("کسر قیمت    : %.0f تومان", cfg.PriceDeduction)
+	logPrintf("آستانه اختلاف: %s تومان", fmtPrice(cfg.DiffThreshold))
+	logPrintf("کسر قیمت    : %s تومان", fmtPrice(cfg.PriceDeduction))
+	logPrintf("──────────────────────────────────")
+
+	// بررسی‌های اولیه هنگام راه‌اندازی
+	logPrintf("در حال بررسی اتصال‌ها...")
+	if !checkInternet() {
+		logPrintf("✗ اینترنت متصل نیست — برنامه متوقف شد")
+		pause()
+		return
+	}
+	botUsername, botOk := checkBot(cfg.BotToken)
+	if !botOk {
+		logPrintf("✗ ربات در دسترس نیست — config.ini را بررسی کنید")
+		pause()
+		return
+	}
+	checkTelegram(cfg.SourceChannel)
+
+	// پیام شروع به کار
+	logPrintf("ارسال پیام شروع به کار به کانال مقصد...")
+	sendStartupMsg(cfg, botUsername)
+	logPrintf("──────────────────────────────────")
 
 	state := loadState("state.json")
 
-	// اجرای فوری در شروع
-	runCheck(cfg, &state)
+	// اولین چرخه فوری
+	runCycle(cfg, &state)
 	saveState("state.json", state)
+
+	logPrintf("⏱ بررسی بعدی در %d دقیقه دیگر...", cfg.IntervalMin)
 
 	ticker := time.NewTicker(time.Duration(cfg.IntervalMin) * time.Minute)
 	defer ticker.Stop()
-
-	logPrintf("در انتظار بررسی بعدی...")
 	for range ticker.C {
-		runCheck(cfg, &state)
+		runCycle(cfg, &state)
 		saveState("state.json", state)
-		logPrintf("در انتظار بررسی بعدی...")
+		logPrintf("⏱ بررسی بعدی در %d دقیقه دیگر...", cfg.IntervalMin)
 	}
 }
 
