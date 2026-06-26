@@ -791,158 +791,162 @@ const ldTimer = setInterval(() => {
   if (pct >= 100) {
     clearInterval(ldTimer);
     setTimeout(() => {
-      gsap.to(loaderEl, {
-        opacity: 0, duration: 0.7,
-        onComplete() { loaderEl.style.display = 'none'; boot(); }
-      });
+      // CSS fallback — works even if GSAP CDN is blocked
+      loaderEl.style.transition = 'opacity 0.7s ease';
+      loaderEl.style.opacity = '0';
+      setTimeout(() => {
+        loaderEl.style.display = 'none';
+        if (typeof gsap !== 'undefined') boot();
+        else bootFallback();
+      }, 700);
     }, 300);
   }
 }, 55);
 
 /* ────────────────────────────────────────
+   FALLBACK — when GSAP/Three CDN blocked
+──────────────────────────────────────── */
+function bootFallback() {
+  // Show all hidden elements via CSS
+  document.querySelectorAll('.h-tag,.h-title,.h-sub,.h-btns,#h-shoe').forEach(el => {
+    el.style.opacity = '1';
+    el.style.transform = 'none';
+    el.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
+  });
+  document.querySelectorAll('.pcard,.gal-item,.s4-quote,.s4-attr,.s5-title,.s5-sub,.cta-title,.cta-sub,.cta-btns').forEach(el => {
+    el.style.opacity = '1';
+    el.style.transform = 'none';
+  });
+}
+
+/* ────────────────────────────────────────
    THREE.JS — PARTICLE BACKGROUND
 ──────────────────────────────────────── */
-const bgCanvas   = document.getElementById('three-canvas');
-const bgRenderer = new THREE.WebGLRenderer({ canvas: bgCanvas, alpha: true, antialias: true });
-bgRenderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-bgRenderer.setSize(innerWidth, innerHeight);
-bgRenderer.setClearColor(0x000000, 0);
-
-const bgScene  = new THREE.Scene();
-const bgCamera = new THREE.PerspectiveCamera(70, innerWidth / innerHeight, 0.1, 100);
-bgCamera.position.z = 4.5;
-
-// Particles
-const N = 4500;
-const pos = new Float32Array(N * 3);
-const col = new Float32Array(N * 3);
-const gc = new THREE.Color('#C8A96E');
-const wc = new THREE.Color('#FFFFFF');
-for (let i = 0; i < N; i++) {
-  const i3 = i * 3;
-  const r  = 2 + Math.random() * 7;
-  const th = Math.random() * Math.PI * 2;
-  const ph = Math.acos(2 * Math.random() - 1);
-  pos[i3]   = r * Math.sin(ph) * Math.cos(th);
-  pos[i3+1] = r * Math.sin(ph) * Math.sin(th);
-  pos[i3+2] = r * Math.cos(ph);
-  const c = gc.clone().lerp(wc, Math.random() * 0.25);
-  col[i3] = c.r; col[i3+1] = c.g; col[i3+2] = c.b;
-}
-const pGeo = new THREE.BufferGeometry();
-pGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-pGeo.setAttribute('color',    new THREE.BufferAttribute(col, 3));
-const pMat = new THREE.PointsMaterial({
-  size: 0.022, vertexColors: true,
-  transparent: true, opacity: 0.65,
-  sizeAttenuation: true,
-  blending: THREE.AdditiveBlending,
-  depthWrite: false,
-});
-const particles = new THREE.Points(pGeo, pMat);
-bgScene.add(particles);
-
-// Torus ring
-const torusGeo = new THREE.TorusGeometry(3.2, 0.003, 8, 140);
-const torusMat = new THREE.MeshBasicMaterial({ color: 0xC8A96E, transparent: true, opacity: 0.1 });
-const torus = new THREE.Mesh(torusGeo, torusMat);
-torus.rotation.x = Math.PI / 2.8;
-bgScene.add(torus);
-
-// Mouse parallax
-const mx = { tx: 0, ty: 0, x: 0, y: 0 };
-addEventListener('mousemove', e => {
-  mx.tx = (e.clientX / innerWidth  - 0.5) * 0.6;
-  mx.ty = (e.clientY / innerHeight - 0.5) * 0.35;
-});
-
-addEventListener('resize', () => {
-  bgCamera.aspect = innerWidth / innerHeight;
-  bgCamera.updateProjectionMatrix();
-  bgRenderer.setSize(innerWidth, innerHeight);
-});
-
-const bgClock = new THREE.Clock();
+let bgRenderer = null, bgScene, bgCamera, particles, torus, pMat, bgClock;
 let bgScrollProgress = 0;
+const mx = { tx:0, ty:0, x:0, y:0 };
 
-(function bgLoop() {
-  requestAnimationFrame(bgLoop);
-  const t = bgClock.getElapsedTime();
-  particles.rotation.y = t * 0.025;
-  particles.rotation.x = t * 0.008;
-  torus.rotation.z     = t * 0.04;
-  mx.x += (mx.tx - mx.x) * 0.06;
-  mx.y += (mx.ty - mx.y) * 0.06;
-  bgCamera.position.x = mx.x;
-  bgCamera.position.y = -mx.y;
-  bgCamera.lookAt(0, 0, 0);
-  pMat.opacity = (0.4 + Math.sin(t * 0.4) * 0.15) * (1 - bgScrollProgress * 0.5);
-  bgRenderer.render(bgScene, bgCamera);
-})();
+try {
+  if (typeof THREE !== 'undefined') {
+    const bgCanvas = document.getElementById('three-canvas');
+    bgRenderer = new THREE.WebGLRenderer({ canvas: bgCanvas, alpha: true, antialias: true });
+    bgRenderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    bgRenderer.setSize(innerWidth, innerHeight);
+    bgRenderer.setClearColor(0x000000, 0);
+    bgScene  = new THREE.Scene();
+    bgCamera = new THREE.PerspectiveCamera(70, innerWidth / innerHeight, 0.1, 100);
+    bgCamera.position.z = 4.5;
+
+    const N = 4500, pos = new Float32Array(N*3), col = new Float32Array(N*3);
+    const gc = new THREE.Color('#C8A96E'), wc = new THREE.Color('#FFFFFF');
+    for (let i = 0; i < N; i++) {
+      const i3=i*3, r=2+Math.random()*7, th=Math.random()*Math.PI*2, ph=Math.acos(2*Math.random()-1);
+      pos[i3]=r*Math.sin(ph)*Math.cos(th); pos[i3+1]=r*Math.sin(ph)*Math.sin(th); pos[i3+2]=r*Math.cos(ph);
+      const c=gc.clone().lerp(wc,Math.random()*.25); col[i3]=c.r; col[i3+1]=c.g; col[i3+2]=c.b;
+    }
+    const pGeo = new THREE.BufferGeometry();
+    pGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    pGeo.setAttribute('color',    new THREE.BufferAttribute(col, 3));
+    pMat = new THREE.PointsMaterial({ size:0.022, vertexColors:true, transparent:true, opacity:0.65, sizeAttenuation:true, blending:THREE.AdditiveBlending, depthWrite:false });
+    particles = new THREE.Points(pGeo, pMat);
+    bgScene.add(particles);
+
+    const torusGeo = new THREE.TorusGeometry(3.2, 0.003, 8, 140);
+    const torusMat = new THREE.MeshBasicMaterial({ color:0xC8A96E, transparent:true, opacity:0.1 });
+    torus = new THREE.Mesh(torusGeo, torusMat);
+    torus.rotation.x = Math.PI / 2.8;
+    bgScene.add(torus);
+
+    bgClock = new THREE.Clock();
+
+    addEventListener('mousemove', e => {
+      mx.tx = (e.clientX/innerWidth  - 0.5)*0.6;
+      mx.ty = (e.clientY/innerHeight - 0.5)*0.35;
+    });
+    addEventListener('resize', () => {
+      bgCamera.aspect = innerWidth/innerHeight;
+      bgCamera.updateProjectionMatrix();
+      bgRenderer.setSize(innerWidth, innerHeight);
+    });
+
+    (function bgLoop() {
+      requestAnimationFrame(bgLoop);
+      const t = bgClock.getElapsedTime();
+      particles.rotation.y = t*0.025; particles.rotation.x = t*0.008;
+      torus.rotation.z = t*0.04;
+      mx.x += (mx.tx-mx.x)*0.06; mx.y += (mx.ty-mx.y)*0.06;
+      bgCamera.position.x = mx.x; bgCamera.position.y = -mx.y;
+      bgCamera.lookAt(0,0,0);
+      pMat.opacity = (0.4+Math.sin(t*0.4)*0.15)*(1-bgScrollProgress*0.5);
+      bgRenderer.render(bgScene, bgCamera);
+    })();
+  }
+} catch(e) { console.warn('Three.js bg:', e); }
 
 /* ────────────────────────────────────────
    THREE.JS — SPHERE SECTION (S5)
 ──────────────────────────────────────── */
-const spCanvas   = document.getElementById('sphere-canvas');
-const spRenderer = new THREE.WebGLRenderer({ canvas: spCanvas, alpha: true, antialias: true });
-spRenderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-spRenderer.setSize(innerWidth, innerHeight);
-spRenderer.setClearColor(0x000000, 0);
-
-const spScene  = new THREE.Scene();
-const spCamera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 0.1, 100);
-spCamera.position.z = 5;
-
-// Wire sphere
-const spGeo  = new THREE.IcosahedronGeometry(2, 4);
-const spMat  = new THREE.MeshBasicMaterial({ color: 0xC8A96E, wireframe: true, transparent: true, opacity: 0.18 });
-const sphere = new THREE.Mesh(spGeo, spMat);
-spScene.add(sphere);
-
-// Inner glow sphere
-const gGeo = new THREE.SphereGeometry(1.6, 32, 32);
-const gMat = new THREE.MeshBasicMaterial({ color: 0x0a0a1a, transparent: true, opacity: 0.95 });
-spScene.add(new THREE.Mesh(gGeo, gMat));
-
-// Orbiting ring
-const orGeo = new THREE.TorusGeometry(2.6, 0.005, 6, 120);
-const orMat = new THREE.MeshBasicMaterial({ color: 0xC8A96E, transparent: true, opacity: 0.25 });
-const orbit = new THREE.Mesh(orGeo, orMat);
-orbit.rotation.x = Math.PI / 2;
-spScene.add(orbit);
-
-const spClock = new THREE.Clock();
+let spRenderer = null, spScene, spCamera, sphere, orbit, spClock;
 let spVisible = false;
 
-(function spLoop() {
-  requestAnimationFrame(spLoop);
-  if (!spVisible) return;
-  const t = spClock.getElapsedTime();
-  sphere.rotation.y = t * 0.18;
-  sphere.rotation.x = t * 0.08;
-  orbit.rotation.z  = t * 0.12;
-  spRenderer.render(spScene, spCamera);
-})();
+try {
+  if (typeof THREE !== 'undefined') {
+    const spCanvas = document.getElementById('sphere-canvas');
+    spRenderer = new THREE.WebGLRenderer({ canvas: spCanvas, alpha: true, antialias: true });
+    spRenderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    spRenderer.setSize(innerWidth, innerHeight);
+    spRenderer.setClearColor(0x000000, 0);
+    spScene  = new THREE.Scene();
+    spCamera = new THREE.PerspectiveCamera(60, innerWidth/innerHeight, 0.1, 100);
+    spCamera.position.z = 5;
 
-addEventListener('resize', () => {
-  spCamera.aspect = innerWidth / innerHeight;
-  spCamera.updateProjectionMatrix();
-  spRenderer.setSize(innerWidth, innerHeight);
-});
+    const spGeo = new THREE.IcosahedronGeometry(2, 4);
+    const spMat = new THREE.MeshBasicMaterial({ color:0xC8A96E, wireframe:true, transparent:true, opacity:0.18 });
+    sphere = new THREE.Mesh(spGeo, spMat);
+    spScene.add(sphere);
+    spScene.add(new THREE.Mesh(new THREE.SphereGeometry(1.6,32,32), new THREE.MeshBasicMaterial({ color:0x0a0a1a, transparent:true, opacity:0.95 })));
+
+    const orMat = new THREE.MeshBasicMaterial({ color:0xC8A96E, transparent:true, opacity:0.25 });
+    orbit = new THREE.Mesh(new THREE.TorusGeometry(2.6,0.005,6,120), orMat);
+    orbit.rotation.x = Math.PI/2;
+    spScene.add(orbit);
+    spClock = new THREE.Clock();
+
+    addEventListener('resize', () => {
+      spCamera.aspect = innerWidth/innerHeight;
+      spCamera.updateProjectionMatrix();
+      spRenderer.setSize(innerWidth, innerHeight);
+    });
+
+    (function spLoop() {
+      requestAnimationFrame(spLoop);
+      if (!spVisible || !spRenderer) return;
+      const t = spClock.getElapsedTime();
+      sphere.rotation.y = t*0.18; sphere.rotation.x = t*0.08;
+      orbit.rotation.z  = t*0.12;
+      spRenderer.render(spScene, spCamera);
+    })();
+  }
+} catch(e) { console.warn('Three.js sphere:', e); }
 
 /* ────────────────────────────────────────
    HOWLER.JS
 ──────────────────────────────────────── */
-const ambient = new Howl({
+let ambient = null;
+try {
+  if (typeof Howl !== 'undefined') {
+    ambient = new Howl({
   // Replace with your own ambient MP3 URL
-  src: ['https://www.soundhelix.com/examples/mp3/SoundHelix-Song-9.mp3'],
-  loop: true, volume: 0.07, html5: true,
-});
+    src: ['https://www.soundhelix.com/examples/mp3/SoundHelix-Song-9.mp3'],
+    loop: true, volume: 0.07, html5: true,
+    });
+  }
+} catch(e) {}
 let sndOn = false;
 document.getElementById('snd-btn').addEventListener('click', function() {
   sndOn = !sndOn;
-  if (sndOn) { ambient.play(); this.textContent = '🔊'; }
-  else        { ambient.pause(); this.textContent = '🔇'; }
+  if (sndOn && ambient) { ambient.play(); this.textContent = '🔊'; }
+  else if (ambient)     { ambient.pause(); this.textContent = '🔇'; }
 });
 
 /* ────────────────────────────────────────
@@ -973,13 +977,15 @@ function boot() {
   });
 
   // ── BG camera dolly via scroll
-  ScrollTrigger.create({
-    trigger: '.page', start: 'top top', end: 'bottom bottom', scrub: 1.5,
-    onUpdate(self) {
-      bgCamera.position.z = 4.5 - self.progress * 2.2;
-      torus.scale.setScalar(1 + self.progress * 0.6);
-    }
-  });
+  if (bgCamera && torus) {
+    ScrollTrigger.create({
+      trigger: '.page', start: 'top top', end: 'bottom bottom', scrub: 1.5,
+      onUpdate(self) {
+        bgCamera.position.z = 4.5 - self.progress * 2.2;
+        torus.scale.setScalar(1 + self.progress * 0.6);
+      }
+    });
+  }
 
   // ── HERO initial reveal
   gsap.set(['.h-tag','.h-title','.h-sub','.h-btns'], { y: 35 });
