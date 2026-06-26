@@ -1,0 +1,1144 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>نایک | آینده را بپوش</title>
+
+  <!-- Vazirmatn — Persian font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@100;300;400;500;700;900&display=swap" rel="stylesheet">
+
+  <style>
+  /* ═══════════════════════════════════════════
+     VARIABLES & RESET
+  ═══════════════════════════════════════════ */
+  :root {
+    --bg:      #030303;
+    --bg2:     #080808;
+    --gold:    #C8A96E;
+    --goldb:   #F0D090;
+    --white:   #FFFFFF;
+    --offwhite:#E8E8E8;
+    --gray:    #555;
+    --grayl:   #999;
+  }
+  *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+  html { font-size:16px; scroll-behavior:smooth; }
+  body {
+    font-family:'Vazirmatn',-apple-system,sans-serif;
+    background:var(--bg);
+    color:var(--white);
+    overflow-x:hidden;
+    direction:rtl;
+    cursor:none;
+  }
+
+  /* ═══════════════════════════════════════════
+     LOADER
+  ═══════════════════════════════════════════ */
+  #loader {
+    position:fixed; inset:0; z-index:9999;
+    background:var(--bg);
+    display:flex; flex-direction:column;
+    align-items:center; justify-content:center; gap:1.5rem;
+  }
+  .ld-logo { font-size:2.5rem; font-weight:900; letter-spacing:.05em; }
+  .ld-logo span { color:var(--gold); }
+  .ld-track { width:220px; height:1px; background:rgba(255,255,255,.08); }
+  .ld-bar   { height:100%; background:var(--gold); width:0; transition:width .04s; }
+  .ld-pct   { font-size:.7rem; letter-spacing:.4em; color:var(--grayl); }
+
+  /* ═══════════════════════════════════════════
+     CURSOR
+  ═══════════════════════════════════════════ */
+  #cur-dot {
+    position:fixed; top:0; left:0; z-index:9998;
+    width:8px; height:8px; border-radius:50%;
+    background:var(--gold); pointer-events:none;
+    transform:translate(-50%,-50%);
+    transition:transform .1s;
+    mix-blend-mode:difference;
+  }
+  #cur-ring {
+    position:fixed; top:0; left:0; z-index:9997;
+    width:36px; height:36px; border-radius:50%;
+    border:1px solid rgba(200,169,110,.4);
+    pointer-events:none;
+    transform:translate(-50%,-50%);
+    transition:transform .12s, opacity .2s;
+  }
+
+  /* ═══════════════════════════════════════════
+     WEBGL CANVAS (fixed background)
+  ═══════════════════════════════════════════ */
+  #three-canvas {
+    position:fixed; inset:0;
+    width:100%; height:100%;
+    z-index:0; pointer-events:none;
+  }
+
+  /* ═══════════════════════════════════════════
+     SCROLL PROGRESS
+  ═══════════════════════════════════════════ */
+  #sprogress {
+    position:fixed; top:0; left:0;
+    height:2px; width:0;
+    background:linear-gradient(to right,var(--gold),var(--goldb));
+    z-index:500;
+  }
+
+  /* ═══════════════════════════════════════════
+     SOUND BUTTON
+  ═══════════════════════════════════════════ */
+  #snd-btn {
+    position:fixed; bottom:2rem; left:2rem; z-index:100;
+    width:46px; height:46px; border-radius:50%;
+    background:rgba(255,255,255,.04);
+    border:1px solid rgba(200,169,110,.25);
+    color:var(--gold); font-size:1.1rem;
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer; transition:all .3s;
+  }
+  #snd-btn:hover { background:rgba(200,169,110,.1); border-color:var(--gold); }
+
+  /* scroll down hint */
+  #scroll-hint {
+    position:fixed; bottom:2rem; right:2.5rem; z-index:100;
+    display:flex; flex-direction:column; align-items:center; gap:.5rem;
+    opacity:1; transition:opacity .5s;
+  }
+  #scroll-hint span {
+    font-size:.6rem; letter-spacing:.35em; color:var(--gray);
+    writing-mode:vertical-rl;
+  }
+  .sh-line {
+    width:1px; height:55px;
+    background:linear-gradient(to bottom,transparent,var(--gold));
+    animation:shPulse 1.6s ease-in-out infinite;
+  }
+  @keyframes shPulse {
+    0%,100%{opacity:.25;transform:scaleY(1)}
+    50%{opacity:1;transform:scaleY(1.2)}
+  }
+
+  /* ═══════════════════════════════════════════
+     PAGE WRAPPER (above canvas)
+  ═══════════════════════════════════════════ */
+  .page { position:relative; z-index:1; }
+
+  /* ═══════════════════════════════════════════
+     NAVIGATION
+  ═══════════════════════════════════════════ */
+  .nav {
+    position:fixed; top:0; left:0; right:0; z-index:50;
+    padding:1.4rem 2.5rem;
+    display:flex; align-items:center; justify-content:space-between;
+    transition:background .4s, backdrop-filter .4s;
+  }
+  .nav.on {
+    background:rgba(3,3,3,.85);
+    backdrop-filter:blur(24px);
+    border-bottom:1px solid rgba(255,255,255,.04);
+  }
+  .nav-logo {
+    font-size:1.4rem; font-weight:900;
+    color:var(--white); text-decoration:none;
+  }
+  .nav-logo em { font-style:normal; color:var(--gold); }
+  .nav-links {
+    display:flex; list-style:none; gap:2.5rem;
+  }
+  @media(max-width:700px){.nav-links{display:none}}
+  .nav-links a {
+    color:var(--grayl); text-decoration:none;
+    font-size:.82rem; transition:color .3s;
+  }
+  .nav-links a:hover{color:var(--white)}
+  .nav-buy {
+    background:transparent;
+    border:1px solid var(--gold); color:var(--gold);
+    padding:.55rem 1.4rem; border-radius:100px;
+    font-family:'Vazirmatn',sans-serif;
+    font-size:.78rem; font-weight:600;
+    cursor:pointer; transition:all .3s;
+  }
+  .nav-buy:hover{background:var(--gold);color:#000}
+
+  /* ═══════════════════════════════════════════
+     S1 — HERO
+  ═══════════════════════════════════════════ */
+  #s1 {
+    height:100vh;
+    display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+    text-align:center; position:relative;
+    overflow:hidden; padding:0 1.5rem;
+  }
+  #s1::after {
+    content:''; position:absolute; bottom:0; left:0; right:0;
+    height:45%; pointer-events:none;
+    background:linear-gradient(to top,var(--bg),transparent);
+    z-index:2;
+  }
+  .h-tag {
+    font-size:.68rem; letter-spacing:.55em;
+    color:var(--gold); text-transform:uppercase;
+    margin-bottom:1.5rem; opacity:0;
+  }
+  .h-title {
+    font-size:clamp(4rem,13vw,11rem);
+    font-weight:900; line-height:.95;
+    color:var(--white); margin-bottom:2rem; opacity:0;
+  }
+  .h-title em {
+    font-style:normal; color:transparent;
+    -webkit-text-stroke:2px var(--gold);
+  }
+  .h-sub {
+    font-size:clamp(.9rem,1.6vw,1.2rem);
+    font-weight:300; color:var(--grayl);
+    max-width:34rem; line-height:2;
+    margin-bottom:3rem; opacity:0;
+  }
+  .h-btns { display:flex; gap:1rem; justify-content:center; opacity:0; }
+
+  .btn-g {
+    background:var(--gold); color:#000;
+    padding:.85rem 2.2rem; border-radius:100px;
+    font-family:'Vazirmatn',sans-serif;
+    font-size:.9rem; font-weight:700;
+    text-decoration:none; border:none; cursor:pointer;
+    transition:all .3s; display:inline-block;
+  }
+  .btn-g:hover{background:var(--goldb);transform:translateY(-2px);box-shadow:0 10px 30px rgba(200,169,110,.35)}
+  .btn-o {
+    background:transparent; color:var(--offwhite);
+    padding:.85rem 1.8rem; border-radius:100px;
+    font-family:'Vazirmatn',sans-serif;
+    font-size:.9rem; font-weight:400;
+    text-decoration:none; cursor:pointer;
+    border:1px solid rgba(255,255,255,.15); transition:all .3s;
+  }
+  .btn-o:hover{border-color:rgba(255,255,255,.5);background:rgba(255,255,255,.05)}
+
+  .h-shoe {
+    position:absolute; bottom:-6%; left:50%;
+    transform:translateX(-50%);
+    width:clamp(260px,52vw,720px);
+    opacity:0; pointer-events:none;
+    filter:drop-shadow(0 30px 80px rgba(200,169,110,.2));
+    z-index:3;
+  }
+  .h-shoe img { width:100%; height:auto; }
+
+  /* ═══════════════════════════════════════════
+     S2 — PRODUCTS (horizontal scroll)
+  ═══════════════════════════════════════════ */
+  #s2 { padding:6rem 2.5rem 4rem; overflow:hidden; }
+  .sec-head { text-align:center; margin-bottom:3.5rem; }
+  .sec-tag {
+    font-size:.65rem; letter-spacing:.55em;
+    color:var(--gold); text-transform:uppercase;
+    margin-bottom:.8rem; display:block;
+  }
+  .sec-title {
+    font-size:clamp(2rem,5vw,3.8rem);
+    font-weight:700; line-height:1.15;
+  }
+  .sec-title .ol {
+    color:transparent;
+    -webkit-text-stroke:1px rgba(255,255,255,.25);
+  }
+
+  #cards-wrap { overflow:hidden; }
+  #cards-track { display:flex; gap:1.5rem; width:max-content; }
+
+  .pcard {
+    flex-shrink:0; width:clamp(260px,28vw,380px);
+    background:rgba(255,255,255,.025);
+    border:1px solid rgba(255,255,255,.06);
+    border-radius:20px; overflow:hidden;
+    transition:border-color .4s, transform .4s;
+    opacity:0;
+  }
+  .pcard:hover{border-color:rgba(200,169,110,.3);transform:translateY(-6px)}
+
+  .pc-img {
+    height:260px; overflow:hidden;
+    background:rgba(255,255,255,.02);
+    display:flex; align-items:center; justify-content:center;
+    position:relative;
+  }
+  .pc-img img {
+    width:88%; height:88%; object-fit:contain;
+    transition:transform .6s ease;
+    filter:drop-shadow(0 10px 30px rgba(0,0,0,.5));
+  }
+  .pcard:hover .pc-img img{transform:scale(1.1) rotate(4deg)}
+  .pc-glow {
+    position:absolute; inset:0;
+    background:radial-gradient(circle at 50% 85%,rgba(200,169,110,.07),transparent 60%);
+  }
+  .pc-body { padding:1.4rem; }
+  .pc-tag  { font-size:.6rem; letter-spacing:.3em; color:var(--gold); text-transform:uppercase; margin-bottom:.4rem; }
+  .pc-name { font-size:1.25rem; font-weight:700; margin-bottom:.35rem; }
+  .pc-desc { font-size:.82rem; color:var(--gray); line-height:1.7; margin-bottom:1.1rem; }
+  .pc-foot { display:flex; align-items:center; justify-content:space-between; }
+  .pc-price{ font-size:1.3rem; font-weight:700; color:var(--gold); }
+  .pc-price small{font-size:.75rem;font-weight:400;color:var(--gray)}
+  .pc-add  {
+    width:38px; height:38px; border-radius:50%;
+    background:var(--gold); border:none; cursor:pointer;
+    font-size:1.2rem; line-height:1;
+    display:flex; align-items:center; justify-content:center;
+    transition:all .3s;
+  }
+  .pc-add:hover{background:var(--goldb);transform:scale(1.15)}
+
+  /* ═══════════════════════════════════════════
+     S3 — FEATURE SPLIT
+  ═══════════════════════════════════════════ */
+  #s3 {
+    min-height:100vh;
+    display:grid; grid-template-columns:1fr 1fr;
+    overflow:hidden;
+  }
+  @media(max-width:768px){#s3{grid-template-columns:1fr}}
+
+  .s3-vis {
+    position:relative; overflow:hidden;
+    min-height:55vh; background:#070707;
+  }
+  .s3-vis img {
+    width:100%; height:100%; object-fit:cover;
+    transform-origin:center; will-change:transform;
+  }
+  .s3-vis::after {
+    content:''; position:absolute; inset:0;
+    background:linear-gradient(135deg,rgba(200,169,110,.06),transparent);
+    pointer-events:none;
+  }
+
+  .s3-txt {
+    display:flex; flex-direction:column;
+    justify-content:center;
+    padding:5rem 4rem; background:#050505;
+  }
+  @media(max-width:768px){.s3-txt{padding:3rem 2rem}}
+
+  .s3-num {
+    font-size:.65rem; letter-spacing:.5em;
+    color:var(--gold); margin-bottom:2rem;
+  }
+  .s3-title {
+    font-size:clamp(2rem,4vw,3.2rem);
+    font-weight:700; line-height:1.2;
+    margin-bottom:1.4rem;
+  }
+  .s3-title em{font-style:normal;color:var(--gold)}
+  .s3-body {
+    font-size:.95rem; color:var(--grayl);
+    line-height:2; margin-bottom:2.5rem;
+  }
+  .s3-stats {
+    display:grid; grid-template-columns:repeat(3,1fr);
+    gap:1.2rem; padding-top:2rem;
+    border-top:1px solid rgba(255,255,255,.06);
+    margin-top:1rem;
+  }
+  .sn { font-size:2.2rem; font-weight:900; color:var(--gold); display:block; line-height:1; }
+  .sl { font-size:.72rem; color:var(--gray); }
+
+  /* ═══════════════════════════════════════════
+     S4 — FULL BLEED STORY
+  ═══════════════════════════════════════════ */
+  #s4 {
+    height:100vh; position:relative;
+    display:flex; align-items:center; justify-content:center;
+    overflow:hidden;
+  }
+  .s4-bg { position:absolute; inset:0; }
+  .s4-bg img {
+    width:100%; height:100%;
+    object-fit:cover; object-position:center 35%;
+    will-change:transform;
+  }
+  .s4-ov {
+    position:absolute; inset:0;
+    background:linear-gradient(to bottom,rgba(3,3,3,.65) 0%,rgba(3,3,3,.25) 45%,rgba(3,3,3,.85) 100%);
+    z-index:1;
+  }
+  .s4-cnt {
+    position:relative; z-index:2;
+    text-align:center; padding:0 2rem;
+    max-width:62rem; margin:0 auto;
+  }
+  .s4-quote {
+    font-size:clamp(1.5rem,4vw,3.2rem);
+    font-weight:300; line-height:1.55;
+    color:var(--white); opacity:0;
+  }
+  .s4-quote strong{font-weight:900;color:var(--gold)}
+  .s4-attr {
+    margin-top:1.5rem; font-size:.72rem;
+    letter-spacing:.35em; color:var(--grayl);
+    text-transform:uppercase; opacity:0;
+  }
+
+  /* ═══════════════════════════════════════════
+     S5 — THREE.JS INTERACTIVE SPHERE
+  ═══════════════════════════════════════════ */
+  #s5 {
+    height:100vh; display:flex;
+    align-items:center; justify-content:center;
+    position:relative; overflow:hidden;
+    background:linear-gradient(180deg,var(--bg) 0%,#050510 100%);
+  }
+  #sphere-canvas {
+    position:absolute; inset:0;
+    width:100%; height:100%;
+  }
+  .s5-txt {
+    position:relative; z-index:2;
+    text-align:center; padding:0 2rem;
+  }
+  .s5-title {
+    font-size:clamp(2.5rem,6vw,5rem);
+    font-weight:900; line-height:1.1;
+    margin-bottom:1.2rem; opacity:0;
+  }
+  .s5-title em{font-style:normal;color:var(--gold)}
+  .s5-sub {
+    font-size:1rem; color:var(--grayl);
+    max-width:28rem; line-height:1.9; opacity:0;
+    margin:0 auto 2.5rem;
+  }
+
+  /* ═══════════════════════════════════════════
+     S6 — GALLERY GRID
+  ═══════════════════════════════════════════ */
+  #s6 { padding:7rem 0; background:#050505; }
+  .gal-inner { max-width:1400px; margin:0 auto; padding:0 2.5rem; }
+  .gal-grid {
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    grid-template-rows:auto;
+    gap:3px; margin-top:4rem;
+  }
+  @media(max-width:768px){.gal-grid{grid-template-columns:1fr 1fr}}
+  .gal-item {
+    position:relative; overflow:hidden;
+    aspect-ratio:4/5; cursor:pointer; opacity:0;
+  }
+  .gal-item:first-child {
+    grid-column:span 2; aspect-ratio:8/5;
+  }
+  .gal-item img {
+    width:100%; height:100%; object-fit:cover;
+    transition:transform .9s ease;
+  }
+  .gal-item:hover img{transform:scale(1.07)}
+  .gal-ov {
+    position:absolute; inset:0;
+    background:linear-gradient(to top,rgba(0,0,0,.85) 0%,transparent 55%);
+    padding:1.8rem; display:flex; flex-direction:column;
+    justify-content:flex-end;
+    opacity:0; transition:opacity .4s;
+  }
+  .gal-item:hover .gal-ov{opacity:1}
+  .gal-cat{font-size:.62rem;letter-spacing:.3em;color:var(--gold);text-transform:uppercase;margin-bottom:.3rem}
+  .gal-name{font-size:1.2rem;font-weight:700}
+
+  /* ═══════════════════════════════════════════
+     S7 — CTA
+  ═══════════════════════════════════════════ */
+  #s7 {
+    min-height:80vh; display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+    text-align:center; padding:6rem 2rem;
+    position:relative; overflow:hidden;
+  }
+  .cta-ring {
+    position:absolute; border-radius:50%;
+    border:1px solid rgba(200,169,110,.04);
+    top:50%; left:50%; transform:translate(-50%,-50%);
+  }
+  .cta-title {
+    font-size:clamp(3rem,10vw,9rem);
+    font-weight:900; line-height:.95;
+    margin-bottom:1.5rem;
+    position:relative; z-index:1; opacity:0;
+  }
+  .cta-title .ol{
+    color:transparent;
+    -webkit-text-stroke:2px var(--gold);
+  }
+  .cta-sub {
+    font-size:.95rem; color:var(--grayl);
+    max-width:28rem; line-height:1.9;
+    margin-bottom:3rem;
+    position:relative; z-index:1; opacity:0;
+  }
+  .cta-btns {
+    display:flex; gap:1.2rem;
+    position:relative; z-index:1; opacity:0;
+  }
+
+  /* ═══════════════════════════════════════════
+     FOOTER
+  ═══════════════════════════════════════════ */
+  footer {
+    padding:2.5rem 2.5rem;
+    border-top:1px solid rgba(255,255,255,.04);
+    display:flex; align-items:center; justify-content:space-between;
+    flex-wrap:wrap; gap:1rem;
+  }
+  .ft-logo{font-size:1.2rem;font-weight:900}
+  .ft-logo em{font-style:normal;color:var(--gold)}
+  .ft-copy{font-size:.75rem;color:var(--gray)}
+  </style>
+</head>
+<body>
+
+<!-- LOADER -->
+<div id="loader">
+  <div class="ld-logo">نایک<span>.</span></div>
+  <div class="ld-track"><div class="ld-bar" id="ld-bar"></div></div>
+  <div class="ld-pct" id="ld-pct">۰٪</div>
+</div>
+
+<!-- CURSOR -->
+<div id="cur-dot"></div>
+<div id="cur-ring"></div>
+
+<!-- SCROLL PROGRESS -->
+<div id="sprogress"></div>
+
+<!-- PARTICLE CANVAS (fixed bg) -->
+<canvas id="three-canvas"></canvas>
+
+<!-- SOUND BTN -->
+<button id="snd-btn" title="صدا">🔇</button>
+
+<!-- SCROLL HINT -->
+<div id="scroll-hint">
+  <div class="sh-line"></div>
+  <span>اسکرول</span>
+</div>
+
+<!-- NAV -->
+<nav class="nav" id="nav">
+  <a href="#" class="nav-logo">نایک<em>.</em></a>
+  <ul class="nav-links">
+    <li><a href="#s2">محصولات</a></li>
+    <li><a href="#s3">فناوری</a></li>
+    <li><a href="#s4">داستان</a></li>
+    <li><a href="#s7">تماس</a></li>
+  </ul>
+  <button class="nav-buy">خرید کن</button>
+</nav>
+
+<div class="page">
+
+<!-- ═══════════════ S1: HERO ═══════════════ -->
+<section id="s1">
+  <div class="h-tag">کلکسیون جدید — ۱۴۰۴</div>
+  <h1 class="h-title">آینده<br>را<br><em>بپوش</em></h1>
+  <p class="h-sub">
+    با پیشرفته‌ترین فناوری کفش در جهان،<br>
+    هر قدم را به یک تجربه‌ی بی‌نظیر تبدیل کن.
+  </p>
+  <div class="h-btns">
+    <a href="#s2" class="btn-g">کشف مجموعه</a>
+    <a href="#s4" class="btn-o">داستان ما</a>
+  </div>
+  <div class="h-shoe" id="h-shoe">
+    <img
+      src="https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=1200&auto=format&fit=crop&q=90"
+      alt="Nike Air Max 2025"
+    >
+  </div>
+</section>
+
+<!-- ═══════════════ S2: PRODUCTS ═══════════════ -->
+<section id="s2">
+  <div class="sec-head">
+    <span class="sec-tag">محصولات برگزیده</span>
+    <h2 class="sec-title">مدل‌های <span class="ol">منتخب</span></h2>
+  </div>
+  <div id="cards-wrap">
+    <div id="cards-track">
+
+      <div class="pcard">
+        <div class="pc-img"><div class="pc-glow"></div>
+          <img src="https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=500&auto=format&fit=crop&q=85" alt="Air Max 270">
+        </div>
+        <div class="pc-body">
+          <div class="pc-tag">نسل ۲۰۲۵</div>
+          <div class="pc-name">Air Max 270</div>
+          <div class="pc-desc">طراحی آیرودینامیک با Air Unit که هر قدم را سبک‌تر می‌کند</div>
+          <div class="pc-foot">
+            <div class="pc-price">۴,۵۰۰,۰۰۰ <small>تومان</small></div>
+            <button class="pc-add">+</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="pcard">
+        <div class="pc-img"><div class="pc-glow"></div>
+          <img src="https://images.unsplash.com/photo-1600185365483-26d7a4cc7519?w=500&auto=format&fit=crop&q=85" alt="Air Force 1">
+        </div>
+        <div class="pc-body">
+          <div class="pc-tag">کلاسیک مدرن</div>
+          <div class="pc-name">Air Force 1 '07</div>
+          <div class="pc-desc">کلاسیک بی‌زمان با رویکرد مدرن و چرم مرغوب ایتالیایی</div>
+          <div class="pc-foot">
+            <div class="pc-price">۳,۸۰۰,۰۰۰ <small>تومان</small></div>
+            <button class="pc-add">+</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="pcard">
+        <div class="pc-img"><div class="pc-glow"></div>
+          <img src="https://images.unsplash.com/photo-1608231387042-66d1773070a5?w=500&auto=format&fit=crop&q=85" alt="React Infinity">
+        </div>
+        <div class="pc-body">
+          <div class="pc-tag">فناوری React</div>
+          <div class="pc-name">React Infinity Run</div>
+          <div class="pc-desc">React Foam برای جذب ضربه و بازگشت انرژی در هر گام</div>
+          <div class="pc-foot">
+            <div class="pc-price">۵,۲۰۰,۰۰۰ <small>تومان</small></div>
+            <button class="pc-add">+</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="pcard">
+        <div class="pc-img"><div class="pc-glow"></div>
+          <img src="https://images.unsplash.com/photo-1606107557195-0e29a4b5b4aa?w=500&auto=format&fit=crop&q=85" alt="Jordan 1">
+        </div>
+        <div class="pc-body">
+          <div class="pc-tag">نسخه محدود</div>
+          <div class="pc-name">Jordan 1 Retro High OG</div>
+          <div class="pc-desc">میراث ۴۰ ساله باسکتبال در قالبی تازه از اسطوره‌های ورزشی</div>
+          <div class="pc-foot">
+            <div class="pc-price">۶,۹۰۰,۰۰۰ <small>تومان</small></div>
+            <button class="pc-add">+</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="pcard">
+        <div class="pc-img"><div class="pc-glow"></div>
+          <img src="https://images.unsplash.com/photo-1584735175097-e2b9a3b04bba?w=500&auto=format&fit=crop&q=85" alt="Nike Dunk">
+        </div>
+        <div class="pc-body">
+          <div class="pc-tag">پرطرفدار</div>
+          <div class="pc-name">Nike Dunk Low</div>
+          <div class="pc-desc">ایکون خیابانی که با رنگ‌بندی جدید دوباره متولد شده است</div>
+          <div class="pc-foot">
+            <div class="pc-price">۳,۴۰۰,۰۰۰ <small>تومان</small></div>
+            <button class="pc-add">+</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ S3: FEATURE ═══════════════ -->
+<section id="s3">
+  <div class="s3-vis">
+    <img id="s3-img"
+      src="https://images.unsplash.com/photo-1552346154-21d32810aba3?w=1200&auto=format&fit=crop&q=90"
+      alt="Nike technology">
+  </div>
+  <div class="s3-txt">
+    <div class="s3-num">۰۲ — فناوری</div>
+    <h2 class="s3-title">ساخته شده<br>برای <em>برنده‌ها</em></h2>
+    <p class="s3-body">
+      نایک با بیش از پنج دهه نوآوری، فناوری‌های پیشرفته‌ای چون Air Max،
+      React Foam و Flyknit را به جهان معرفی کرده که مرزهای عملکرد انسانی را
+      جابجا کرده‌اند. هر کفش یک دستاورد مهندسی است.
+    </p>
+    <a href="#s2" class="btn-g" style="width:fit-content">کشف فناوری</a>
+    <div class="s3-stats">
+      <div><span class="sn" data-to="50">۰</span><span class="sl">سال نوآوری</span></div>
+      <div><span class="sn" data-to="500">۰</span><span class="sl">مدل فعال</span></div>
+      <div><span class="sn" data-to="180">۰</span><span class="sl">کشور دنیا</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ S4: STORY ═══════════════ -->
+<section id="s4">
+  <div class="s4-bg">
+    <img id="s4-img"
+      src="https://images.unsplash.com/photo-1598971861713-54ad16a7e72e?w=1600&auto=format&fit=crop&q=90"
+      alt="Nike story">
+  </div>
+  <div class="s4-ov"></div>
+  <div class="s4-cnt">
+    <p class="s4-quote">
+      «هر بار که در آستانه‌ی تسلیم شدن هستی،<br>
+      به یاد بیاور چرا <strong>شروع کردی.</strong>»
+    </p>
+    <p class="s4-attr">— نایک، ۱۹۷۱</p>
+  </div>
+</section>
+
+<!-- ═══════════════ S5: SPHERE ═══════════════ -->
+<section id="s5">
+  <canvas id="sphere-canvas"></canvas>
+  <div class="s5-txt">
+    <h2 class="s5-title">فناوری<br><em>آینده</em></h2>
+    <p class="s5-sub">
+      الگوریتم‌های هوش مصنوعی نایک، بهترین مدل را<br>
+      برای هر نوع ورزش و سبک زندگی پیشنهاد می‌دهد.
+    </p>
+    <a href="#s2" class="btn-g">همین حالا ببین</a>
+  </div>
+</section>
+
+<!-- ═══════════════ S6: GALLERY ═══════════════ -->
+<section id="s6">
+  <div class="gal-inner">
+    <div class="sec-head">
+      <span class="sec-tag">گالری</span>
+      <h2 class="sec-title">مدل‌های <span class="ol">۱۴۰۴</span></h2>
+    </div>
+    <div class="gal-grid">
+      <div class="gal-item">
+        <img src="https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=900&auto=format&fit=crop&q=90" alt="">
+        <div class="gal-ov"><div class="gal-cat">کلکسیون بهاره</div><div class="gal-name">Air Max 270</div></div>
+      </div>
+      <div class="gal-item">
+        <img src="https://images.unsplash.com/photo-1600185365483-26d7a4cc7519?w=600&auto=format&fit=crop&q=90" alt="">
+        <div class="gal-ov"><div class="gal-cat">کلاسیک</div><div class="gal-name">Air Force 1</div></div>
+      </div>
+      <div class="gal-item">
+        <img src="https://images.unsplash.com/photo-1608231387042-66d1773070a5?w=600&auto=format&fit=crop&q=90" alt="">
+        <div class="gal-ov"><div class="gal-cat">عملکرد بالا</div><div class="gal-name">React Infinity</div></div>
+      </div>
+      <div class="gal-item">
+        <img src="https://images.unsplash.com/photo-1606107557195-0e29a4b5b4aa?w=600&auto=format&fit=crop&q=90" alt="">
+        <div class="gal-ov"><div class="gal-cat">نسخه محدود</div><div class="gal-name">Jordan 1 OG</div></div>
+      </div>
+      <div class="gal-item">
+        <img src="https://images.unsplash.com/photo-1584735175097-e2b9a3b04bba?w=600&auto=format&fit=crop&q=90" alt="">
+        <div class="gal-ov"><div class="gal-cat">ایکون</div><div class="gal-name">Dunk Low</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ S7: CTA ═══════════════ -->
+<section id="s7">
+  <div class="cta-ring" style="width:500px;height:500px"></div>
+  <div class="cta-ring" style="width:800px;height:800px"></div>
+  <div class="cta-ring" style="width:1100px;height:1100px"></div>
+  <h2 class="cta-title">همین<br>حالا<br><span class="ol">بخر</span></h2>
+  <p class="cta-sub">
+    ارسال رایگان به سراسر ایران — ضمانت اصالت کالا<br>
+    تا ۳۰ روز مهلت مرجوعی بدون قید و شرط
+  </p>
+  <div class="cta-btns">
+    <a href="#s2" class="btn-g">مشاهده محصولات</a>
+    <button class="btn-o">مشاوره رایگان</button>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="ft-logo">نایک<em>.</em></div>
+  <div class="ft-copy">© ۱۴۰۴ — همه حقوق محفوظ است</div>
+</footer>
+
+</div><!-- /.page -->
+
+<!-- ═══════════════════════════════════════════════
+     LIBRARIES
+═══════════════════════════════════════════════ -->
+<script src="https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/howler/2.2.4/howler.min.js"></script>
+
+<script>
+'use strict';
+
+/* ────────────────────────────────────────
+   PERSIAN DIGITS
+──────────────────────────────────────── */
+const FD = ['۰','۱','۲','۳','۴','۵','۶','۷','۸','۹'];
+const toFa = n => String(Math.floor(n)).replace(/\d/g, d => FD[d]);
+
+/* ────────────────────────────────────────
+   LOADER
+──────────────────────────────────────── */
+const loaderEl = document.getElementById('loader');
+const ldBar    = document.getElementById('ld-bar');
+const ldPct    = document.getElementById('ld-pct');
+let pct = 0;
+const ldTimer = setInterval(() => {
+  pct = Math.min(pct + Math.random() * 12, 100);
+  ldBar.style.width = pct + '%';
+  ldPct.textContent = toFa(pct) + '٪';
+  if (pct >= 100) {
+    clearInterval(ldTimer);
+    setTimeout(() => {
+      // CSS fallback — works even if GSAP CDN is blocked
+      loaderEl.style.transition = 'opacity 0.7s ease';
+      loaderEl.style.opacity = '0';
+      setTimeout(() => {
+        loaderEl.style.display = 'none';
+        if (typeof gsap !== 'undefined') boot();
+        else bootFallback();
+      }, 700);
+    }, 300);
+  }
+}, 55);
+
+/* ────────────────────────────────────────
+   FALLBACK — when GSAP/Three CDN blocked
+──────────────────────────────────────── */
+function bootFallback() {
+  // Show all hidden elements via CSS
+  document.querySelectorAll('.h-tag,.h-title,.h-sub,.h-btns,#h-shoe').forEach(el => {
+    el.style.opacity = '1';
+    el.style.transform = 'none';
+    el.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
+  });
+  document.querySelectorAll('.pcard,.gal-item,.s4-quote,.s4-attr,.s5-title,.s5-sub,.cta-title,.cta-sub,.cta-btns').forEach(el => {
+    el.style.opacity = '1';
+    el.style.transform = 'none';
+  });
+}
+
+/* ────────────────────────────────────────
+   THREE.JS — PARTICLE BACKGROUND
+──────────────────────────────────────── */
+let bgRenderer = null, bgScene, bgCamera, particles, torus, pMat, bgClock;
+let bgScrollProgress = 0;
+const mx = { tx:0, ty:0, x:0, y:0 };
+
+try {
+  if (typeof THREE !== 'undefined') {
+    const bgCanvas = document.getElementById('three-canvas');
+    bgRenderer = new THREE.WebGLRenderer({ canvas: bgCanvas, alpha: true, antialias: true });
+    bgRenderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    bgRenderer.setSize(innerWidth, innerHeight);
+    bgRenderer.setClearColor(0x000000, 0);
+    bgScene  = new THREE.Scene();
+    bgCamera = new THREE.PerspectiveCamera(70, innerWidth / innerHeight, 0.1, 100);
+    bgCamera.position.z = 4.5;
+
+    const N = 4500, pos = new Float32Array(N*3), col = new Float32Array(N*3);
+    const gc = new THREE.Color('#C8A96E'), wc = new THREE.Color('#FFFFFF');
+    for (let i = 0; i < N; i++) {
+      const i3=i*3, r=2+Math.random()*7, th=Math.random()*Math.PI*2, ph=Math.acos(2*Math.random()-1);
+      pos[i3]=r*Math.sin(ph)*Math.cos(th); pos[i3+1]=r*Math.sin(ph)*Math.sin(th); pos[i3+2]=r*Math.cos(ph);
+      const c=gc.clone().lerp(wc,Math.random()*.25); col[i3]=c.r; col[i3+1]=c.g; col[i3+2]=c.b;
+    }
+    const pGeo = new THREE.BufferGeometry();
+    pGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    pGeo.setAttribute('color',    new THREE.BufferAttribute(col, 3));
+    pMat = new THREE.PointsMaterial({ size:0.022, vertexColors:true, transparent:true, opacity:0.65, sizeAttenuation:true, blending:THREE.AdditiveBlending, depthWrite:false });
+    particles = new THREE.Points(pGeo, pMat);
+    bgScene.add(particles);
+
+    const torusGeo = new THREE.TorusGeometry(3.2, 0.003, 8, 140);
+    const torusMat = new THREE.MeshBasicMaterial({ color:0xC8A96E, transparent:true, opacity:0.1 });
+    torus = new THREE.Mesh(torusGeo, torusMat);
+    torus.rotation.x = Math.PI / 2.8;
+    bgScene.add(torus);
+
+    bgClock = new THREE.Clock();
+
+    addEventListener('mousemove', e => {
+      mx.tx = (e.clientX/innerWidth  - 0.5)*0.6;
+      mx.ty = (e.clientY/innerHeight - 0.5)*0.35;
+    });
+    addEventListener('resize', () => {
+      bgCamera.aspect = innerWidth/innerHeight;
+      bgCamera.updateProjectionMatrix();
+      bgRenderer.setSize(innerWidth, innerHeight);
+    });
+
+    (function bgLoop() {
+      requestAnimationFrame(bgLoop);
+      const t = bgClock.getElapsedTime();
+      particles.rotation.y = t*0.025; particles.rotation.x = t*0.008;
+      torus.rotation.z = t*0.04;
+      mx.x += (mx.tx-mx.x)*0.06; mx.y += (mx.ty-mx.y)*0.06;
+      bgCamera.position.x = mx.x; bgCamera.position.y = -mx.y;
+      bgCamera.lookAt(0,0,0);
+      pMat.opacity = (0.4+Math.sin(t*0.4)*0.15)*(1-bgScrollProgress*0.5);
+      bgRenderer.render(bgScene, bgCamera);
+    })();
+  }
+} catch(e) { console.warn('Three.js bg:', e); }
+
+/* ────────────────────────────────────────
+   THREE.JS — SPHERE SECTION (S5)
+──────────────────────────────────────── */
+let spRenderer = null, spScene, spCamera, sphere, orbit, spClock;
+let spVisible = false;
+
+try {
+  if (typeof THREE !== 'undefined') {
+    const spCanvas = document.getElementById('sphere-canvas');
+    spRenderer = new THREE.WebGLRenderer({ canvas: spCanvas, alpha: true, antialias: true });
+    spRenderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    spRenderer.setSize(innerWidth, innerHeight);
+    spRenderer.setClearColor(0x000000, 0);
+    spScene  = new THREE.Scene();
+    spCamera = new THREE.PerspectiveCamera(60, innerWidth/innerHeight, 0.1, 100);
+    spCamera.position.z = 5;
+
+    const spGeo = new THREE.IcosahedronGeometry(2, 4);
+    const spMat = new THREE.MeshBasicMaterial({ color:0xC8A96E, wireframe:true, transparent:true, opacity:0.18 });
+    sphere = new THREE.Mesh(spGeo, spMat);
+    spScene.add(sphere);
+    spScene.add(new THREE.Mesh(new THREE.SphereGeometry(1.6,32,32), new THREE.MeshBasicMaterial({ color:0x0a0a1a, transparent:true, opacity:0.95 })));
+
+    const orMat = new THREE.MeshBasicMaterial({ color:0xC8A96E, transparent:true, opacity:0.25 });
+    orbit = new THREE.Mesh(new THREE.TorusGeometry(2.6,0.005,6,120), orMat);
+    orbit.rotation.x = Math.PI/2;
+    spScene.add(orbit);
+    spClock = new THREE.Clock();
+
+    addEventListener('resize', () => {
+      spCamera.aspect = innerWidth/innerHeight;
+      spCamera.updateProjectionMatrix();
+      spRenderer.setSize(innerWidth, innerHeight);
+    });
+
+    (function spLoop() {
+      requestAnimationFrame(spLoop);
+      if (!spVisible || !spRenderer) return;
+      const t = spClock.getElapsedTime();
+      sphere.rotation.y = t*0.18; sphere.rotation.x = t*0.08;
+      orbit.rotation.z  = t*0.12;
+      spRenderer.render(spScene, spCamera);
+    })();
+  }
+} catch(e) { console.warn('Three.js sphere:', e); }
+
+/* ────────────────────────────────────────
+   HOWLER.JS
+──────────────────────────────────────── */
+let ambient = null;
+try {
+  if (typeof Howl !== 'undefined') {
+    ambient = new Howl({
+  // Replace with your own ambient MP3 URL
+    src: ['https://www.soundhelix.com/examples/mp3/SoundHelix-Song-9.mp3'],
+    loop: true, volume: 0.07, html5: true,
+    });
+  }
+} catch(e) {}
+let sndOn = false;
+document.getElementById('snd-btn').addEventListener('click', function() {
+  sndOn = !sndOn;
+  if (sndOn && ambient) { ambient.play(); this.textContent = '🔊'; }
+  else if (ambient)     { ambient.pause(); this.textContent = '🔇'; }
+});
+
+/* ────────────────────────────────────────
+   BOOT — GSAP ANIMATIONS
+──────────────────────────────────────── */
+function boot() {
+  gsap.registerPlugin(ScrollTrigger);
+
+  // ── NAV glass on scroll
+  ScrollTrigger.create({
+    start: '60px top',
+    toggleClass: { targets: '#nav', className: 'on' },
+  });
+
+  // ── Scroll hint fade
+  ScrollTrigger.create({
+    trigger: '#s2', start: 'top 85%',
+    onEnter: () => gsap.to('#scroll-hint', { opacity: 0, duration: 0.5 }),
+  });
+
+  // ── Progress bar
+  ScrollTrigger.create({
+    trigger: '.page', start: 'top top', end: 'bottom bottom', scrub: true,
+    onUpdate(self) {
+      document.getElementById('sprogress').style.width = (self.progress * 100) + '%';
+      bgScrollProgress = self.progress;
+    }
+  });
+
+  // ── BG camera dolly via scroll
+  if (bgCamera && torus) {
+    ScrollTrigger.create({
+      trigger: '.page', start: 'top top', end: 'bottom bottom', scrub: 1.5,
+      onUpdate(self) {
+        bgCamera.position.z = 4.5 - self.progress * 2.2;
+        torus.scale.setScalar(1 + self.progress * 0.6);
+      }
+    });
+  }
+
+  // ── HERO initial reveal
+  gsap.set(['.h-tag','.h-title','.h-sub','.h-btns'], { y: 35 });
+  gsap.set('#h-shoe', { y: 50 });
+  const htl = gsap.timeline({ delay: 0.1 });
+  htl
+    .to('.h-tag',   { opacity:1, y:0, duration:0.6, ease:'power2.out' }, 0)
+    .to('.h-title', { opacity:1, y:0, duration:0.9, ease:'power3.out' }, 0.15)
+    .to('.h-sub',   { opacity:1, y:0, duration:0.7, ease:'power2.out' }, 0.35)
+    .to('.h-btns',  { opacity:1, y:0, duration:0.7, ease:'power2.out' }, 0.5)
+    .to('#h-shoe',  { opacity:0.92, y:0, duration:1.3, ease:'power2.out' }, 0.25);
+
+  // ── Hero shoe parallax
+  gsap.to('#h-shoe', {
+    y: -90, ease: 'none',
+    scrollTrigger: { trigger:'#s1', start:'top top', end:'bottom top', scrub:1 }
+  });
+
+  // ── S2 PRODUCTS — horizontal scroll
+  const track = document.getElementById('cards-track');
+  const totalW = track.scrollWidth - innerWidth + 80;
+
+  gsap.fromTo('.pcard',
+    { opacity:0, y:50 },
+    { opacity:1, y:0, stagger:0.1, duration:0.7, ease:'power3.out',
+      scrollTrigger:{ trigger:'#s2', start:'top 78%' } }
+  );
+
+  if (innerWidth > 768) {
+    gsap.to(track, {
+      x: -totalW, ease:'none',
+      scrollTrigger: {
+        trigger:'#s2', start:'top top',
+        end: '+=' + totalW,
+        pin:true, scrub:1, anticipatePin:1,
+      }
+    });
+  }
+
+  // ── S3 FEATURE
+  gsap.fromTo('.s3-vis',
+    { clipPath:'inset(0 100% 0 0)' },
+    { clipPath:'inset(0 0% 0 0)', duration:1.4, ease:'power3.inOut',
+      scrollTrigger:{ trigger:'#s3', start:'top 72%' } }
+  );
+  gsap.fromTo('.s3-txt > *',
+    { opacity:0, x:40 },
+    { opacity:1, x:0, stagger:0.08, duration:0.7, ease:'power2.out',
+      scrollTrigger:{ trigger:'#s3', start:'top 68%' } }
+  );
+  gsap.to('#s3-img', {
+    scale: 1.12, ease:'none',
+    scrollTrigger:{ trigger:'#s3', start:'top bottom', end:'bottom top', scrub:1 }
+  });
+
+  // ── S3 Stats counter
+  document.querySelectorAll('.sn').forEach(el => {
+    const to = parseInt(el.dataset.to, 10);
+    ScrollTrigger.create({
+      trigger: el, start:'top 88%', once:true,
+      onEnter() {
+        gsap.to({ v:0 }, {
+          v: to, duration:1.6, ease:'power2.out',
+          onUpdate() { el.textContent = toFa(this.targets()[0].v) + '+'; }
+        });
+      }
+    });
+  });
+
+  // ── S4 STORY parallax
+  gsap.to('#s4-img', {
+    scale:1.18, y:-70, ease:'none',
+    scrollTrigger:{ trigger:'#s4', start:'top bottom', end:'bottom top', scrub:1 }
+  });
+  gsap.fromTo('.s4-quote',
+    { opacity:0, y:45 },
+    { opacity:1, y:0, duration:1, ease:'power3.out',
+      scrollTrigger:{ trigger:'#s4', start:'top 62%' } }
+  );
+  gsap.fromTo('.s4-attr',
+    { opacity:0 },
+    { opacity:1, duration:0.8, delay:0.3, ease:'power2.out',
+      scrollTrigger:{ trigger:'#s4', start:'top 62%' } }
+  );
+
+  // ── S5 SPHERE
+  ScrollTrigger.create({
+    trigger:'#s5', start:'top 90%',
+    onEnter: () => { spVisible = true; },
+  });
+  gsap.fromTo(['.s5-title','.s5-sub','.s5-txt .btn-g'],
+    { opacity:0, y:40 },
+    { opacity:1, y:0, stagger:0.12, duration:0.8, ease:'power2.out',
+      scrollTrigger:{ trigger:'#s5', start:'top 65%' } }
+  );
+
+  // ── S6 GALLERY
+  gsap.fromTo('.gal-item',
+    { opacity:0, scale:0.9 },
+    { opacity:1, scale:1, stagger:0.08, duration:0.75, ease:'power2.out',
+      scrollTrigger:{ trigger:'#s6', start:'top 75%' } }
+  );
+
+  // ── S7 CTA
+  gsap.fromTo('.cta-title',
+    { opacity:0, y:80, scale:0.88 },
+    { opacity:1, y:0, scale:1, duration:1.2, ease:'power4.out',
+      scrollTrigger:{ trigger:'#s7', start:'top 70%' } }
+  );
+  gsap.fromTo(['.cta-sub','.cta-btns'],
+    { opacity:0, y:35 },
+    { opacity:1, y:0, stagger:0.12, duration:0.8, ease:'power2.out',
+      scrollTrigger:{ trigger:'#s7', start:'top 65%' } }
+  );
+
+  // CTA rings rotate
+  gsap.to('.cta-ring', {
+    rotation: '+=360', duration:25,
+    repeat:-1, ease:'none', stagger:8,
+  });
+
+} // end boot()
+
+/* ────────────────────────────────────────
+   CUSTOM CURSOR
+──────────────────────────────────────── */
+const dot  = document.getElementById('cur-dot');
+const ring = document.getElementById('cur-ring');
+let cx=0, cy=0, rx=0, ry=0;
+addEventListener('mousemove', e => {
+  cx = e.clientX; cy = e.clientY;
+  dot.style.left = cx + 'px';
+  dot.style.top  = cy + 'px';
+});
+(function curLoop() {
+  rx += (cx - rx) * 0.11;
+  ry += (cy - ry) * 0.11;
+  ring.style.left = rx + 'px';
+  ring.style.top  = ry + 'px';
+  requestAnimationFrame(curLoop);
+})();
+document.querySelectorAll('a,button').forEach(el => {
+  el.addEventListener('mouseenter', () => {
+    dot.style.transform  = 'translate(-50%,-50%) scale(2.5)';
+    ring.style.transform = 'translate(-50%,-50%) scale(1.5)';
+    ring.style.opacity   = '0.5';
+  });
+  el.addEventListener('mouseleave', () => {
+    dot.style.transform  = 'translate(-50%,-50%) scale(1)';
+    ring.style.transform = 'translate(-50%,-50%) scale(1)';
+    ring.style.opacity   = '1';
+  });
+});
+</script>
+</body>
+</html>
