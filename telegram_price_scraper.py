@@ -217,6 +217,36 @@ class ChartoneXApp(ctk.CTk):
         self._build_settings_page()
 
         self._show_page("channels")
+        self._bind_paste_to_all_entries()
+
+    def _bind_paste_to_all_entries(self):
+        """Enable Ctrl+V and right-click paste on all CTkEntry widgets."""
+        def bind_entry(widget):
+            if isinstance(widget, ctk.CTkEntry):
+                inner = widget._entry
+                inner.bind("<Control-v>", lambda e: self._paste(inner))
+                inner.bind("<Control-V>", lambda e: self._paste(inner))
+                inner.bind("<Button-3>", lambda e: self._show_paste_menu(e, inner))
+            for child in widget.winfo_children():
+                bind_entry(child)
+        bind_entry(self)
+
+    def _paste(self, entry_widget):
+        try:
+            text = self.clipboard_get()
+            entry_widget.insert(tk.INSERT, text)
+        except Exception:
+            pass
+        return "break"
+
+    def _show_paste_menu(self, event, entry_widget):
+        menu = tk.Menu(self, tearoff=0,
+                       bg=COLORS["bg_card"], fg=COLORS["text_primary"],
+                       activebackground=COLORS["accent"], activeforeground="#000000",
+                       font=("Segoe UI", 11))
+        menu.add_command(label="پیست (Paste)", command=lambda: self._paste(entry_widget))
+        menu.add_command(label="انتخاب همه", command=lambda: entry_widget.select_range(0, "end"))
+        menu.tk_popup(event.x_root, event.y_root)
 
     def _build_sidebar(self):
         # Logo area
