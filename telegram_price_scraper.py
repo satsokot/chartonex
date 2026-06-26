@@ -114,7 +114,7 @@ def extract_prices(text: str):
 
 
 # ── Telegram Client ───────────────────────────────────────────────────────────
-async def fetch_channel_prices(api_id, api_hash, phone, channels, limit, progress_cb, result_cb, error_cb):
+async def fetch_channel_prices(api_id, api_hash, phone, channels, limit, progress_cb, result_cb, error_cb, code_cb, password_cb):
     """Connect to Telegram and read recent messages from each channel."""
     try:
         from telethon import TelegramClient
@@ -127,7 +127,11 @@ async def fetch_channel_prices(api_id, api_hash, phone, channels, limit, progres
     client = TelegramClient(session_file, int(api_id), api_hash)
 
     try:
-        await client.start(phone=phone)
+        await client.start(
+            phone=phone,
+            code_callback=code_cb,
+            password=password_cb,
+        )
     except Exception as e:
         error_cb(f"خطا در اتصال به تلگرام:\n{e}")
         return
@@ -590,6 +594,19 @@ class ChartoneXApp(ctk.CTk):
         def error_cb(msg):
             self.after(0, lambda: self._on_error(msg))
 
+        def code_cb():
+            return self._ask_input(
+                "کد تأیید تلگرام",
+                "تلگرام یک کد برای شما فرستاد.\nکد را اینجا وارد کنید:"
+            )
+
+        def password_cb():
+            return self._ask_input(
+                "رمز دو مرحله‌ای",
+                "حساب شما رمز دو مرحله‌ای دارد.\nرمز را وارد کنید:",
+                secret=True
+            )
+
         def run():
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
@@ -597,12 +614,58 @@ class ChartoneXApp(ctk.CTk):
                 fetch_channel_prices(
                     s["api_id"], s["api_hash"], s["phone"],
                     self.channels, limit,
-                    progress_cb, result_cb, error_cb
+                    progress_cb, result_cb, error_cb, code_cb, password_cb
                 )
             )
             loop.close()
 
         threading.Thread(target=run, daemon=True).start()
+
+    def _ask_input(self, title, prompt, secret=False):
+        """Show a blocking dialog on the main thread and return the entered value."""
+        result_holder = [None]
+        event = threading.Event()
+
+        def show():
+            dialog = ctk.CTkToplevel(self)
+            dialog.title(title)
+            dialog.geometry("360x200")
+            dialog.resizable(False, False)
+            dialog.configure(fg_color=COLORS["bg_card"])
+            dialog.grab_set()
+            dialog.lift()
+            dialog.focus_force()
+
+            ctk.CTkLabel(dialog, text=prompt,
+                         font=ctk.CTkFont("Segoe UI", 12),
+                         text_color=COLORS["text_primary"],
+                         wraplength=320).pack(padx=24, pady=(24, 12))
+
+            entry = ctk.CTkEntry(dialog, height=38, width=300,
+                                 fg_color=COLORS["bg_input"],
+                                 border_color=COLORS["accent"],
+                                 text_color=COLORS["text_primary"],
+                                 show="*" if secret else "")
+            entry.pack(padx=24, pady=(0, 16))
+            entry.focus()
+
+            def confirm(e=None):
+                result_holder[0] = entry.get().strip()
+                dialog.destroy()
+                event.set()
+
+            entry.bind("<Return>", confirm)
+            ctk.CTkButton(dialog, text="تأیید", height=36, width=120,
+                          fg_color=COLORS["accent"], hover_color=COLORS["accent_hover"],
+                          text_color="#000000",
+                          font=ctk.CTkFont("Segoe UI", 12, "bold"),
+                          command=confirm).pack()
+
+            dialog.protocol("WM_DELETE_WINDOW", confirm)
+
+        self.after(0, show)
+        event.wait(timeout=120)
+        return result_holder[0] or ""
 
     def _on_progress(self, done, total, msg):
         frac = done / total if total else 0
