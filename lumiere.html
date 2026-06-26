@@ -1,0 +1,1834 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LUMIÈRE BEAUTY — Luminous by Nature</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;0,700;1,300;1,400&family=Jost:wght@200;300;400;500;600&display=swap" rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+  <style>
+    :root {
+      --blush: #F5D5C8;
+      --rose-gold: #C4956A;
+      --deep-rose: #A0614A;
+      --cream: #FFF9F7;
+      --warm-white: #FDF5F0;
+      --dark: #2C1810;
+      --mid: #7A4A3A;
+      --light-pink: #FDEAE3;
+      --gold: #D4AF7A;
+      --pearl: rgba(255,255,255,0.85);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Jost', sans-serif;
+      background: var(--cream);
+      color: var(--dark);
+      overflow-x: hidden;
+    }
+
+    /* ─── LOADER ─── */
+    #loader {
+      position: fixed; inset: 0;
+      background: var(--cream);
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      z-index: 9999;
+      transition: opacity 0.8s ease, visibility 0.8s;
+    }
+    #loader.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+    .loader-brand {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 2.5rem;
+      font-weight: 300;
+      letter-spacing: 0.4em;
+      color: var(--dark);
+    }
+    .loader-sub {
+      font-size: 0.7rem;
+      letter-spacing: 0.3em;
+      color: var(--rose-gold);
+      margin-top: 0.3rem;
+    }
+    .loader-bar-wrap {
+      width: 180px; height: 1px;
+      background: var(--blush);
+      margin-top: 2rem;
+      overflow: hidden;
+    }
+    .loader-bar-fill {
+      height: 100%;
+      background: var(--rose-gold);
+      width: 0%;
+      transition: width 0.05s linear;
+    }
+
+    /* ─── NAV ─── */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0;
+      z-index: 1000;
+      padding: 1.5rem 3rem;
+      display: flex; align-items: center; justify-content: space-between;
+      transition: background 0.4s, backdrop-filter 0.4s;
+    }
+    nav.scrolled {
+      background: rgba(255,249,247,0.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(196,149,106,0.15);
+    }
+    .nav-links { display: flex; gap: 2.5rem; }
+    .nav-links a {
+      font-size: 0.75rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--dark);
+      text-decoration: none;
+      position: relative;
+    }
+    .nav-links a::after {
+      content: '';
+      position: absolute; bottom: -3px; left: 0;
+      width: 0; height: 1px;
+      background: var(--rose-gold);
+      transition: width 0.3s;
+    }
+    .nav-links a:hover::after { width: 100%; }
+    .nav-brand {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.4rem;
+      letter-spacing: 0.25em;
+      font-weight: 400;
+      color: var(--dark);
+      text-decoration: none;
+      text-align: center;
+      line-height: 1;
+    }
+    .nav-brand span { display: block; font-size: 0.55rem; letter-spacing: 0.4em; color: var(--rose-gold); margin-top: 2px; }
+    .nav-icons { display: flex; gap: 1.5rem; align-items: center; }
+    .nav-icon {
+      width: 20px; height: 20px; cursor: pointer;
+      color: var(--dark); opacity: 0.7;
+      transition: opacity 0.2s;
+      background: none; border: none; padding: 0;
+    }
+    .nav-icon:hover { opacity: 1; }
+
+    /* ─── HERO ─── */
+    #hero {
+      position: relative;
+      height: 100vh;
+      min-height: 700px;
+      display: flex; align-items: center;
+      overflow: hidden;
+      background: linear-gradient(135deg, #FFF0EA 0%, #FAD8CC 40%, #F5C8BA 70%, #EDB8A6 100%);
+    }
+    #hero-canvas {
+      position: absolute; inset: 0;
+      z-index: 0;
+    }
+    .hero-content {
+      position: relative; z-index: 2;
+      padding: 0 5rem;
+      max-width: 600px;
+    }
+    .hero-tag {
+      display: inline-block;
+      font-size: 0.65rem;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      color: var(--deep-rose);
+      border: 1px solid var(--deep-rose);
+      padding: 0.35rem 0.9rem;
+      margin-bottom: 1.5rem;
+      opacity: 0;
+    }
+    .hero-title {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: clamp(4rem, 8vw, 7rem);
+      font-weight: 300;
+      line-height: 0.9;
+      color: var(--dark);
+      opacity: 0;
+    }
+    .hero-title em {
+      font-style: italic;
+      color: var(--deep-rose);
+      font-size: 0.55em;
+      display: block;
+      letter-spacing: 0.25em;
+      line-height: 2;
+    }
+    .hero-desc {
+      font-size: 0.9rem;
+      font-weight: 300;
+      line-height: 1.8;
+      color: var(--mid);
+      margin: 1.5rem 0 2.5rem;
+      opacity: 0;
+    }
+    .hero-cta {
+      display: inline-flex; align-items: center; gap: 0.8rem;
+      background: var(--deep-rose);
+      color: #fff;
+      text-decoration: none;
+      padding: 1rem 2rem;
+      font-size: 0.7rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      opacity: 0;
+      transition: background 0.3s, transform 0.3s;
+    }
+    .hero-cta:hover { background: var(--dark); transform: translateX(4px); }
+    .hero-cta-arrow { font-size: 1rem; }
+    .hero-counter {
+      position: absolute; bottom: 3rem; right: 5rem; z-index: 2;
+      display: flex; align-items: center; gap: 1rem;
+      font-size: 0.75rem;
+      color: var(--mid);
+      opacity: 0;
+    }
+    .hero-counter-line { width: 40px; height: 1px; background: var(--rose-gold); }
+
+    /* ─── SCROLL INDICATOR ─── */
+    .scroll-indicator {
+      position: absolute; bottom: 2rem; left: 50%; transform: translateX(-50%);
+      z-index: 2; display: flex; flex-direction: column; align-items: center; gap: 0.4rem;
+    }
+    .scroll-indicator span { font-size: 0.6rem; letter-spacing: 0.2em; color: var(--mid); }
+    .scroll-line {
+      width: 1px; height: 40px;
+      background: linear-gradient(to bottom, var(--rose-gold), transparent);
+      animation: scrollPulse 1.5s ease-in-out infinite;
+    }
+    @keyframes scrollPulse {
+      0%, 100% { opacity: 0.3; transform: scaleY(1); }
+      50% { opacity: 1; transform: scaleY(1.2); }
+    }
+
+    /* ─── SECTION BASE ─── */
+    section { position: relative; overflow: hidden; }
+
+    .section-tag {
+      font-size: 0.65rem;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      color: var(--rose-gold);
+      margin-bottom: 0.8rem;
+    }
+    .section-title {
+      font-family: 'Cormorant Garamond', serif;
+      font-weight: 300;
+      line-height: 1.1;
+    }
+
+    /* ─── CATEGORIES ─── */
+    #categories {
+      padding: 6rem 5rem;
+      background: var(--warm-white);
+    }
+    .categories-header {
+      text-align: center;
+      margin-bottom: 4rem;
+    }
+    .categories-header .section-title { font-size: 2.8rem; }
+    .categories-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1.5rem;
+    }
+    .cat-card {
+      background: #fff;
+      border: 1px solid rgba(196,149,106,0.15);
+      padding: 2.5rem 1.5rem;
+      display: flex; flex-direction: column;
+      align-items: flex-start;
+      position: relative;
+      overflow: hidden;
+      cursor: pointer;
+      transition: transform 0.4s, box-shadow 0.4s;
+    }
+    .cat-card::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: linear-gradient(135deg, rgba(245,213,200,0.3), transparent);
+      opacity: 0;
+      transition: opacity 0.4s;
+    }
+    .cat-card:hover { transform: translateY(-6px); box-shadow: 0 20px 60px rgba(160,97,74,0.12); }
+    .cat-card:hover::before { opacity: 1; }
+    .cat-canvas {
+      width: 100%; height: 160px;
+      margin-bottom: 1.5rem;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .cat-name {
+      font-size: 0.7rem;
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: var(--dark);
+      margin-bottom: 0.5rem;
+    }
+    .cat-desc {
+      font-size: 0.8rem;
+      font-weight: 300;
+      color: var(--mid);
+      line-height: 1.6;
+      margin-bottom: 1.2rem;
+    }
+    .cat-link {
+      font-size: 0.65rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--rose-gold);
+      text-decoration: none;
+      display: flex; align-items: center; gap: 0.5rem;
+      transition: gap 0.3s;
+    }
+    .cat-link:hover { gap: 0.9rem; }
+
+    /* ─── BESTSELLERS ─── */
+    #bestsellers {
+      padding: 6rem 5rem;
+      background: var(--cream);
+    }
+    .bestsellers-header {
+      display: flex; align-items: flex-end; justify-content: space-between;
+      margin-bottom: 3rem;
+    }
+    .bestsellers-header .section-title { font-size: 2.5rem; }
+    .view-all {
+      font-size: 0.65rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--rose-gold);
+      text-decoration: none;
+      border-bottom: 1px solid var(--rose-gold);
+      padding-bottom: 2px;
+      transition: color 0.2s;
+    }
+    .products-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 2rem;
+    }
+    .product-card {
+      cursor: pointer;
+      transform-style: preserve-3d;
+    }
+    .product-visual {
+      position: relative;
+      height: 260px;
+      background: var(--light-pink);
+      overflow: hidden;
+      margin-bottom: 1.2rem;
+    }
+    .product-canvas { width: 100%; height: 100%; }
+    .product-badge {
+      position: absolute; top: 1rem; left: 1rem;
+      font-size: 0.6rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      background: var(--deep-rose);
+      color: #fff;
+      padding: 0.25rem 0.6rem;
+    }
+    .product-add {
+      position: absolute; bottom: 1rem; right: 1rem;
+      width: 36px; height: 36px;
+      background: #fff;
+      border: none; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      opacity: 0;
+      transform: translateY(8px);
+      transition: opacity 0.3s, transform 0.3s;
+    }
+    .product-card:hover .product-add { opacity: 1; transform: translateY(0); }
+    .product-name {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.1rem;
+      font-weight: 400;
+      color: var(--dark);
+    }
+    .product-sub { font-size: 0.75rem; color: var(--mid); margin: 0.2rem 0 0.6rem; }
+    .product-price { font-size: 0.9rem; font-weight: 500; color: var(--deep-rose); }
+
+    /* ─── INGREDIENTS ─── */
+    #ingredients {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+    }
+    .ingredients-left {
+      background: var(--dark);
+      display: flex; align-items: center; justify-content: center;
+      position: relative;
+      overflow: hidden;
+    }
+    #ingredients-canvas { position: absolute; inset: 0; }
+    .ingredients-overlay {
+      position: relative; z-index: 2;
+      text-align: center;
+      color: var(--blush);
+    }
+    .ingredients-overlay .section-title {
+      font-size: 3rem;
+      color: var(--cream);
+      margin-bottom: 1rem;
+    }
+    .ingredients-right {
+      background: var(--warm-white);
+      display: flex; align-items: center;
+      padding: 5rem;
+    }
+    .ingredients-content .section-tag { margin-bottom: 0.5rem; }
+    .ingredients-content .section-title { font-size: 2.8rem; color: var(--dark); margin-bottom: 1.5rem; }
+    .ingredients-body {
+      font-size: 0.9rem;
+      font-weight: 300;
+      line-height: 1.9;
+      color: var(--mid);
+      margin-bottom: 2.5rem;
+    }
+    .ingredients-list { list-style: none; margin-bottom: 2.5rem; }
+    .ingredients-list li {
+      display: flex; align-items: center; gap: 0.8rem;
+      font-size: 0.8rem;
+      color: var(--dark);
+      padding: 0.6rem 0;
+      border-bottom: 1px solid rgba(196,149,106,0.1);
+    }
+    .ing-icon {
+      width: 20px; height: 20px;
+      border-radius: 50%;
+      background: var(--blush);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.7rem;
+      color: var(--deep-rose);
+      flex-shrink: 0;
+    }
+    .learn-btn {
+      display: inline-flex; align-items: center; gap: 0.8rem;
+      font-size: 0.7rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--dark);
+      text-decoration: none;
+      border-bottom: 1px solid var(--rose-gold);
+      padding-bottom: 4px;
+      transition: gap 0.3s, color 0.3s;
+    }
+    .learn-btn:hover { gap: 1.2rem; color: var(--rose-gold); }
+
+    /* ─── RESULTS ─── */
+    #results {
+      padding: 6rem 5rem;
+      background: var(--cream);
+    }
+    .results-header {
+      text-align: center;
+      margin-bottom: 4rem;
+    }
+    .results-header .section-title { font-size: 2.8rem; }
+    .results-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 3rem;
+      align-items: center;
+    }
+    .before-after {
+      position: relative;
+      height: 380px;
+      border-radius: 2px;
+      overflow: hidden;
+      background: #E8D0C8;
+      grid-column: 1 / 3;
+    }
+    #results-canvas { position: absolute; inset: 0; }
+    .ba-labels {
+      position: absolute; bottom: 1.5rem;
+      left: 0; right: 0;
+      display: flex; justify-content: space-between;
+      padding: 0 1.5rem;
+      z-index: 2;
+    }
+    .ba-label {
+      font-size: 0.65rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      background: rgba(255,255,255,0.85);
+      color: var(--dark);
+      padding: 0.3rem 0.8rem;
+    }
+    .stats-list { display: flex; flex-direction: column; gap: 2.5rem; }
+    .stat-item {}
+    .stat-number {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 3.5rem;
+      font-weight: 300;
+      color: var(--deep-rose);
+      line-height: 1;
+    }
+    .stat-label {
+      font-size: 0.8rem;
+      font-weight: 300;
+      color: var(--mid);
+      margin-top: 0.4rem;
+      line-height: 1.5;
+    }
+
+    /* ─── SCROLL PRODUCT SHOWCASE ─── */
+    #showcase {
+      background: var(--dark);
+      position: relative;
+      overflow: hidden;
+    }
+    #showcase-canvas {
+      position: sticky; top: 0;
+      width: 100%; height: 100vh;
+      display: block;
+    }
+    .showcase-sections {
+      position: relative;
+      z-index: 2;
+    }
+    .showcase-panel {
+      height: 100vh;
+      display: flex; align-items: center;
+      padding: 0 5rem;
+      pointer-events: none;
+    }
+    .showcase-panel:first-child { pointer-events: none; }
+    .showcase-text {
+      max-width: 400px;
+      opacity: 0;
+      transform: translateX(-40px);
+    }
+    .showcase-text.active {
+      opacity: 1;
+      transform: translateX(0);
+      transition: opacity 0.6s, transform 0.6s;
+    }
+    .showcase-text .section-tag { color: var(--blush); opacity: 0.7; }
+    .showcase-text .section-title {
+      font-size: 3rem;
+      color: var(--cream);
+      margin: 0.5rem 0 1rem;
+    }
+    .showcase-text p {
+      font-size: 0.85rem;
+      font-weight: 300;
+      line-height: 1.9;
+      color: rgba(255,249,247,0.7);
+      margin-bottom: 2rem;
+    }
+    .showcase-btn {
+      display: inline-block;
+      border: 1px solid var(--blush);
+      color: var(--blush);
+      text-decoration: none;
+      padding: 0.8rem 2rem;
+      font-size: 0.7rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      transition: background 0.3s, color 0.3s;
+      pointer-events: all;
+    }
+    .showcase-btn:hover { background: var(--blush); color: var(--dark); }
+
+    /* ─── REVIEWS ─── */
+    #reviews {
+      padding: 6rem 5rem;
+      background: var(--warm-white);
+    }
+    .reviews-header {
+      margin-bottom: 3.5rem;
+    }
+    .reviews-header .section-title { font-size: 2.5rem; }
+    .reviews-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 2rem;
+      margin-bottom: 3rem;
+    }
+    .review-card {
+      background: #fff;
+      padding: 2rem;
+      border: 1px solid rgba(196,149,106,0.1);
+      position: relative;
+    }
+    .review-stars { color: var(--rose-gold); font-size: 0.85rem; margin-bottom: 1rem; }
+    .review-text {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.1rem;
+      font-weight: 400;
+      font-style: italic;
+      line-height: 1.7;
+      color: var(--dark);
+      margin-bottom: 1.5rem;
+    }
+    .reviewer {
+      display: flex; align-items: center; gap: 0.8rem;
+    }
+    .reviewer-avatar {
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      background: var(--blush);
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1rem;
+      color: var(--deep-rose);
+    }
+    .reviewer-name { font-size: 0.8rem; font-weight: 500; color: var(--dark); }
+
+    /* ─── NEWSLETTER ─── */
+    #newsletter {
+      padding: 5rem;
+      background: linear-gradient(135deg, #F5D5C8 0%, #EDB8A6 50%, #E8B0A0 100%);
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4rem;
+      align-items: center;
+      position: relative;
+      overflow: hidden;
+    }
+    #newsletter-canvas { position: absolute; inset: 0; opacity: 0.4; }
+    .newsletter-left { position: relative; z-index: 2; }
+    .newsletter-left .section-tag { color: var(--deep-rose); }
+    .newsletter-left .section-title { font-size: 2.5rem; color: var(--dark); margin: 0.5rem 0 1rem; }
+    .newsletter-left p { font-size: 0.85rem; font-weight: 300; line-height: 1.8; color: var(--mid); }
+    .newsletter-right { position: relative; z-index: 2; }
+    .newsletter-form { display: flex; flex-direction: column; gap: 1rem; }
+    .newsletter-form input {
+      background: rgba(255,255,255,0.7);
+      border: 1px solid rgba(160,97,74,0.3);
+      padding: 1rem 1.2rem;
+      font-family: 'Jost', sans-serif;
+      font-size: 0.85rem;
+      color: var(--dark);
+      outline: none;
+      transition: border-color 0.3s, background 0.3s;
+    }
+    .newsletter-form input:focus { border-color: var(--deep-rose); background: rgba(255,255,255,0.9); }
+    .newsletter-form input::placeholder { color: var(--mid); }
+    .newsletter-form button {
+      background: var(--dark);
+      color: var(--cream);
+      border: none;
+      padding: 1rem 2rem;
+      font-family: 'Jost', sans-serif;
+      font-size: 0.7rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    .newsletter-form button:hover { background: var(--deep-rose); }
+
+    /* ─── FOOTER ─── */
+    footer {
+      background: var(--dark);
+      color: var(--blush);
+      padding: 4rem 5rem 2rem;
+    }
+    .footer-grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr 1fr;
+      gap: 3rem;
+      margin-bottom: 3rem;
+      padding-bottom: 3rem;
+      border-bottom: 1px solid rgba(245,213,200,0.1);
+    }
+    .footer-brand {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.8rem;
+      font-weight: 300;
+      letter-spacing: 0.2em;
+      color: var(--cream);
+      margin-bottom: 1rem;
+    }
+    .footer-brand span { display: block; font-size: 0.55rem; letter-spacing: 0.4em; color: var(--rose-gold); }
+    .footer-desc { font-size: 0.8rem; font-weight: 300; line-height: 1.8; color: rgba(245,213,200,0.6); }
+    .footer-col h4 {
+      font-size: 0.65rem;
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      color: var(--cream);
+      margin-bottom: 1.2rem;
+    }
+    .footer-col a {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 300;
+      color: rgba(245,213,200,0.6);
+      text-decoration: none;
+      margin-bottom: 0.6rem;
+      transition: color 0.2s;
+    }
+    .footer-col a:hover { color: var(--blush); }
+    .footer-bottom {
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: 0.7rem;
+      color: rgba(245,213,200,0.3);
+    }
+    .footer-perks {
+      background: rgba(245,213,200,0.05);
+      border-top: 1px solid rgba(245,213,200,0.08);
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      padding: 2rem 5rem;
+    }
+    .perk {
+      display: flex; align-items: center; gap: 1rem;
+      border-right: 1px solid rgba(245,213,200,0.08);
+      padding: 0 2rem;
+    }
+    .perk:first-child { padding-left: 0; }
+    .perk:last-child { border-right: none; }
+    .perk-icon { font-size: 1.3rem; }
+    .perk-name { font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--cream); }
+    .perk-desc { font-size: 0.7rem; font-weight: 300; color: rgba(245,213,200,0.5); margin-top: 2px; }
+
+    /* ─── PARALLAX BLOBS ─── */
+    .blob {
+      position: absolute;
+      border-radius: 50%;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+
+<!-- LOADER -->
+<div id="loader">
+  <div class="loader-brand">LUMIÈRE</div>
+  <div class="loader-sub">BEAUTY</div>
+  <div class="loader-bar-wrap"><div class="loader-bar-fill" id="loader-fill"></div></div>
+</div>
+
+<!-- NAV -->
+<nav id="nav">
+  <div class="nav-links">
+    <a href="#categories">Shop</a>
+    <a href="#bestsellers">Collections</a>
+    <a href="#ingredients">Skincare</a>
+    <a href="#reviews">About</a>
+  </div>
+  <a href="#hero" class="nav-brand">LUMIÈRE <span>BEAUTY</span></a>
+  <div class="nav-icons">
+    <button class="nav-icon" title="Search">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="7"/><path d="m16.5 16.5 4 4"/></svg>
+    </button>
+    <button class="nav-icon" title="Account">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+    </button>
+    <button class="nav-icon" title="Cart">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+    </button>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section id="hero">
+  <canvas id="hero-canvas"></canvas>
+  <div class="hero-content">
+    <div class="hero-tag" id="hero-tag">New Collection</div>
+    <h1 class="hero-title" id="hero-title">
+      LUMINOUS
+      <em>by nature</em>
+    </h1>
+    <p class="hero-desc" id="hero-desc">Elevated skincare and beauty rituals,<br>crafted for your natural radiance.</p>
+    <a href="#bestsellers" class="hero-cta" id="hero-cta">
+      Discover Now <span class="hero-cta-arrow">→</span>
+    </a>
+  </div>
+  <div class="hero-counter" id="hero-counter">
+    <span>01</span>
+    <div class="hero-counter-line"></div>
+    <span>03</span>
+  </div>
+  <div class="scroll-indicator">
+    <span>SCROLL</span>
+    <div class="scroll-line"></div>
+  </div>
+</section>
+
+<!-- CATEGORIES -->
+<section id="categories">
+  <div class="categories-header">
+    <div class="section-tag">Explore</div>
+    <h2 class="section-title">Shop By Category</h2>
+  </div>
+  <div class="categories-grid">
+    <div class="cat-card">
+      <canvas class="cat-canvas" id="cat-canvas-0"></canvas>
+      <div class="cat-name">Skincare</div>
+      <div class="cat-desc">Glow with every drop</div>
+      <a href="#" class="cat-link">Shop Now →</a>
+    </div>
+    <div class="cat-card">
+      <canvas class="cat-canvas" id="cat-canvas-1"></canvas>
+      <div class="cat-name">Makeup</div>
+      <div class="cat-desc">Enhance your natural beauty</div>
+      <a href="#" class="cat-link">Shop Now →</a>
+    </div>
+    <div class="cat-card">
+      <canvas class="cat-canvas" id="cat-canvas-2"></canvas>
+      <div class="cat-name">Fragrance</div>
+      <div class="cat-desc">Signature scents, unforgettable</div>
+      <a href="#" class="cat-link">Shop Now →</a>
+    </div>
+    <div class="cat-card">
+      <canvas class="cat-canvas" id="cat-canvas-3"></canvas>
+      <div class="cat-name">Gifts & Sets</div>
+      <div class="cat-desc">Curated luxury for every occasion</div>
+      <a href="#" class="cat-link">Shop Now →</a>
+    </div>
+  </div>
+</section>
+
+<!-- BESTSELLERS -->
+<section id="bestsellers">
+  <div class="bestsellers-header">
+    <div>
+      <div class="section-tag">Most Loved</div>
+      <h2 class="section-title">Bestsellers</h2>
+    </div>
+    <a href="#" class="view-all">View All</a>
+  </div>
+  <div class="products-grid" id="products-grid">
+    <div class="product-card">
+      <div class="product-visual">
+        <canvas class="product-canvas" id="prod-canvas-0"></canvas>
+        <span class="product-badge">Bestseller</span>
+        <button class="product-add">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 5v14M5 12h14"/></svg>
+        </button>
+      </div>
+      <div class="product-name">Radiance Glow Serum</div>
+      <div class="product-sub">30ml · All Skin Types</div>
+      <div class="product-price">$89.00</div>
+    </div>
+    <div class="product-card">
+      <div class="product-visual">
+        <canvas class="product-canvas" id="prod-canvas-1"></canvas>
+        <button class="product-add">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 5v14M5 12h14"/></svg>
+        </button>
+      </div>
+      <div class="product-name">Hydra Glow Rich Cream</div>
+      <div class="product-sub">50ml · Dry & Sensitive</div>
+      <div class="product-price">$79.00</div>
+    </div>
+    <div class="product-card">
+      <div class="product-visual">
+        <canvas class="product-canvas" id="prod-canvas-2"></canvas>
+        <span class="product-badge">New</span>
+        <button class="product-add">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 5v14M5 12h14"/></svg>
+        </button>
+      </div>
+      <div class="product-name">Lumière Lip Glow</div>
+      <div class="product-sub">3.5g · 12 Shades</div>
+      <div class="product-price">$42.00</div>
+    </div>
+    <div class="product-card">
+      <div class="product-visual">
+        <canvas class="product-canvas" id="prod-canvas-3"></canvas>
+        <button class="product-add">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 5v14M5 12h14"/></svg>
+        </button>
+      </div>
+      <div class="product-name">Eau de Parfum</div>
+      <div class="product-sub">50ml · Floral & Musky</div>
+      <div class="product-price">$129.00</div>
+    </div>
+  </div>
+</section>
+
+<!-- SCROLL SHOWCASE (Sticky 3D) -->
+<section id="showcase">
+  <canvas id="showcase-canvas"></canvas>
+  <div class="showcase-sections">
+    <div class="showcase-panel" id="panel-0">
+      <div class="showcase-text" id="panel-text-0">
+        <div class="section-tag">Skincare Ritual</div>
+        <h2 class="section-title">The Perfect<br>Morning Glow</h2>
+        <p>Start your day with our Radiance Glow Serum — packed with Vitamin C and hyaluronic acid for instant luminosity.</p>
+        <a href="#" class="showcase-btn">Explore Skincare</a>
+      </div>
+    </div>
+    <div class="showcase-panel" id="panel-1">
+      <div class="showcase-text" id="panel-text-1">
+        <div class="section-tag">Makeup Artistry</div>
+        <h2 class="section-title">Colour That<br>Celebrates You</h2>
+        <p>From velvet lip pigments to luminous foundations — makeup that enhances, never masks, your natural beauty.</p>
+        <a href="#" class="showcase-btn">Explore Makeup</a>
+      </div>
+    </div>
+    <div class="showcase-panel" id="panel-2">
+      <div class="showcase-text" id="panel-text-2">
+        <div class="section-tag">Signature Scents</div>
+        <h2 class="section-title">Fragrance<br>As Identity</h2>
+        <p>Each bottle holds a story — crafted by master perfumers from the world's rarest botanical ingredients.</p>
+        <a href="#" class="showcase-btn">Explore Fragrance</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- INGREDIENTS -->
+<section id="ingredients">
+  <div class="ingredients-left">
+    <canvas id="ingredients-canvas"></canvas>
+    <div class="ingredients-overlay">
+      <div class="section-title">Nature's<br>Finest</div>
+    </div>
+  </div>
+  <div class="ingredients-right">
+    <div class="ingredients-content">
+      <div class="section-tag">Our Promise</div>
+      <h2 class="section-title">Our Ingredients,<br>Our Promise</h2>
+      <p class="ingredients-body">
+        We source the finest natural ingredients and blend them with advanced science to reveal your purest, most luminous skin.
+      </p>
+      <ul class="ingredients-list">
+        <li><span class="ing-icon">✓</span> Clean & Conscious — No harmful chemicals</li>
+        <li><span class="ing-icon">✓</span> Clinically Tested — Proven results in 28 days</li>
+        <li><span class="ing-icon">✓</span> Sustainable Beauty — Eco-certified packaging</li>
+        <li><span class="ing-icon">✓</span> Cruelty Free — Never tested on animals</li>
+      </ul>
+      <a href="#" class="learn-btn">Learn Our Story →</a>
+    </div>
+  </div>
+</section>
+
+<!-- RESULTS -->
+<section id="results">
+  <div class="results-header">
+    <div class="section-tag">Clinically Proven</div>
+    <h2 class="section-title">Real Results, Real Radiance</h2>
+  </div>
+  <div class="results-grid">
+    <div class="before-after">
+      <canvas id="results-canvas"></canvas>
+      <div class="ba-labels">
+        <span class="ba-label">BEFORE</span>
+        <span class="ba-label">AFTER</span>
+      </div>
+    </div>
+    <div class="stats-list">
+      <div class="stat-item">
+        <div class="stat-number" data-target="92">0%</div>
+        <div class="stat-label">saw brighter, more radiant skin</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-number" data-target="89">0%</div>
+        <div class="stat-label">felt intense hydration all day</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-number" data-target="94">0%</div>
+        <div class="stat-label">noticed improved skin texture</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- REVIEWS -->
+<section id="reviews">
+  <div class="reviews-header">
+    <div class="section-tag">Community</div>
+    <h2 class="section-title">Loved By Our Community</h2>
+  </div>
+  <div class="reviews-grid">
+    <div class="review-card">
+      <div class="review-stars">★★★★★</div>
+      <p class="review-text">"Lumière Beauty has completely transformed my skincare routine. My skin has never looked this radiant."</p>
+      <div class="reviewer">
+        <div class="reviewer-avatar">S</div>
+        <div class="reviewer-name">— Sarah J.</div>
+      </div>
+    </div>
+    <div class="review-card">
+      <div class="review-stars">★★★★★</div>
+      <p class="review-text">"The glow is real! My skin has never felt so hydrated and radiant. Worth every penny."</p>
+      <div class="reviewer">
+        <div class="reviewer-avatar">E</div>
+        <div class="reviewer-name">— Emily R.</div>
+      </div>
+    </div>
+    <div class="review-card">
+      <div class="review-stars">★★★★★</div>
+      <p class="review-text">"Luxury you can see and feel. Worth every moment. The serum is simply magical."</p>
+      <div class="reviewer">
+        <div class="reviewer-avatar">O</div>
+        <div class="reviewer-name">— Olivia M.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- NEWSLETTER -->
+<section id="newsletter">
+  <canvas id="newsletter-canvas"></canvas>
+  <div class="newsletter-left">
+    <div class="section-tag">Join Us</div>
+    <h2 class="section-title">Join The<br>Lumière Circle</h2>
+    <p>Be the first to know about new launches, exclusive offers, and beauty secrets from our experts.</p>
+  </div>
+  <div class="newsletter-right">
+    <form class="newsletter-form" onsubmit="return false;">
+      <input type="email" placeholder="Enter your email address" />
+      <button type="submit">Join Now</button>
+    </form>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-perks">
+    <div class="perk">
+      <span class="perk-icon">🚚</span>
+      <div>
+        <div class="perk-name">Free Shipping</div>
+        <div class="perk-desc">On all orders over $75</div>
+      </div>
+    </div>
+    <div class="perk">
+      <span class="perk-icon">✨</span>
+      <div>
+        <div class="perk-name">Luxury Samples</div>
+        <div class="perk-desc">With every order</div>
+      </div>
+    </div>
+    <div class="perk">
+      <span class="perk-icon">↩</span>
+      <div>
+        <div class="perk-name">Easy Returns</div>
+        <div class="perk-desc">30-day return policy</div>
+      </div>
+    </div>
+    <div class="perk">
+      <span class="perk-icon">🔒</span>
+      <div>
+        <div class="perk-name">Secure Payments</div>
+        <div class="perk-desc">100% protected checkout</div>
+      </div>
+    </div>
+  </div>
+  <div style="padding: 4rem 5rem 2rem;">
+    <div class="footer-grid">
+      <div>
+        <div class="footer-brand">LUMIÈRE <span>BEAUTY</span></div>
+        <p class="footer-desc">Elevated skincare and beauty rituals, crafted for your natural radiance. Clean, conscious, luminous.</p>
+      </div>
+      <div class="footer-col">
+        <h4>Shop</h4>
+        <a href="#">Skincare</a>
+        <a href="#">Makeup</a>
+        <a href="#">Fragrance</a>
+        <a href="#">Gift Sets</a>
+      </div>
+      <div class="footer-col">
+        <h4>Company</h4>
+        <a href="#">Our Story</a>
+        <a href="#">Ingredients</a>
+        <a href="#">Sustainability</a>
+        <a href="#">Press</a>
+      </div>
+      <div class="footer-col">
+        <h4>Support</h4>
+        <a href="#">Contact Us</a>
+        <a href="#">Shipping</a>
+        <a href="#">Returns</a>
+        <a href="#">FAQ</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>© 2024 Lumière Beauty. All rights reserved.</span>
+      <span>Privacy Policy · Terms of Service</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+/* ═══════════════════════════════════════════
+   THREE.JS SCENES
+═══════════════════════════════════════════ */
+
+const PI2 = Math.PI * 2;
+
+/* ── HERO SCENE ── */
+(function() {
+  const canvas = document.getElementById('hero-canvas');
+  const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 1000);
+  camera.position.z = 5;
+
+  function resize() {
+    const w = canvas.parentElement.offsetWidth;
+    const h = canvas.parentElement.offsetHeight;
+    renderer.setSize(w, h);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  // Ambient + directional light
+  scene.add(new THREE.AmbientLight(0xffeedd, 0.8));
+  const dirLight = new THREE.DirectionalLight(0xffd5b8, 1.5);
+  dirLight.position.set(3, 5, 5);
+  scene.add(dirLight);
+  const pinkLight = new THREE.PointLight(0xf5a0b0, 1.2, 15);
+  pinkLight.position.set(-3, 2, 3);
+  scene.add(pinkLight);
+
+  // Floating spheres (product blobs)
+  const sphereData = [
+    { pos: [2, 0.5, 0], r: 0.9, color: 0xC4956A, speed: 0.8 },
+    { pos: [-2, -0.5, -1], r: 0.6, color: 0xF5D5C8, speed: 1.1 },
+    { pos: [3.5, -1, -2], r: 0.45, color: 0xEDB8A6, speed: 0.7 },
+    { pos: [-1, 1.5, -1.5], r: 0.35, color: 0xD4AF7A, speed: 1.3 },
+    { pos: [1, -1.8, 0.5], r: 0.28, color: 0xA0614A, speed: 0.9 },
+  ];
+
+  const spheres = sphereData.map(d => {
+    const geo = new THREE.SphereGeometry(d.r, 32, 32);
+    const mat = new THREE.MeshStandardMaterial({
+      color: d.color,
+      roughness: 0.1,
+      metalness: 0.6,
+      envMapIntensity: 1,
+    });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set(...d.pos);
+    mesh.userData = { speed: d.speed, originY: d.pos[1] };
+    scene.add(mesh);
+    return mesh;
+  });
+
+  // Particles
+  const particleCount = 300;
+  const pGeo = new THREE.BufferGeometry();
+  const pPos = new Float32Array(particleCount * 3);
+  for (let i = 0; i < particleCount; i++) {
+    pPos[i * 3] = (Math.random() - 0.5) * 12;
+    pPos[i * 3 + 1] = (Math.random() - 0.5) * 8;
+    pPos[i * 3 + 2] = (Math.random() - 0.5) * 6 - 2;
+  }
+  pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
+  const pMat = new THREE.PointsMaterial({ color: 0xffd5c8, size: 0.04, transparent: true, opacity: 0.7 });
+  scene.add(new THREE.Points(pGeo, pMat));
+
+  // Mouse parallax
+  let mouseX = 0, mouseY = 0;
+  document.addEventListener('mousemove', e => {
+    mouseX = (e.clientX / window.innerWidth - 0.5) * 2;
+    mouseY = -(e.clientY / window.innerHeight - 0.5) * 2;
+  });
+
+  let t = 0;
+  function animate() {
+    requestAnimationFrame(animate);
+    t += 0.01;
+    spheres.forEach((s, i) => {
+      s.position.y = s.userData.originY + Math.sin(t * s.userData.speed + i) * 0.2;
+      s.rotation.y += 0.005 * s.userData.speed;
+      s.rotation.x += 0.003;
+    });
+    camera.position.x += (mouseX * 0.3 - camera.position.x) * 0.05;
+    camera.position.y += (mouseY * 0.2 - camera.position.y) * 0.05;
+    renderer.render(scene, camera);
+  }
+  animate();
+})();
+
+/* ── CATEGORY MINI SCENES ── */
+const catColors = [
+  [0xf5d5c8, 0xc4956a, 0xa0614a],
+  [0xf5a0b0, 0xe8647a, 0xc04060],
+  [0xd0b0d8, 0x9070a8, 0x604878],
+  [0xffd5a0, 0xe0a050, 0xc08030],
+];
+const catNames = ['cat-canvas-0','cat-canvas-1','cat-canvas-2','cat-canvas-3'];
+
+catNames.forEach((id, idx) => {
+  const canvas = document.getElementById(id);
+  if (!canvas) return;
+  const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
+  camera.position.z = 3;
+
+  function resize() {
+    const w = canvas.parentElement.offsetWidth;
+    const h = canvas.offsetHeight;
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+  const dl = new THREE.DirectionalLight(0xffeedd, 2);
+  dl.position.set(2, 3, 3);
+  scene.add(dl);
+
+  const colors = catColors[idx];
+  const geo = new THREE.SphereGeometry(0.7, 32, 32);
+  const mat = new THREE.MeshStandardMaterial({ color: colors[0], roughness: 0.15, metalness: 0.5 });
+  const main = new THREE.Mesh(geo, mat);
+  scene.add(main);
+
+  // Ring
+  const rGeo = new THREE.TorusGeometry(1.1, 0.04, 16, 80);
+  const rMat = new THREE.MeshStandardMaterial({ color: colors[1], roughness: 0.2, metalness: 0.8 });
+  const ring = new THREE.Mesh(rGeo, rMat);
+  ring.rotation.x = Math.PI / 2.5;
+  scene.add(ring);
+
+  // Small orbs
+  for (let i = 0; i < 5; i++) {
+    const a = (i / 5) * PI2;
+    const sm = new THREE.Mesh(
+      new THREE.SphereGeometry(0.1, 12, 12),
+      new THREE.MeshStandardMaterial({ color: colors[2], roughness: 0.1, metalness: 0.7 })
+    );
+    sm.position.set(Math.cos(a) * 1.1, 0.3, Math.sin(a) * 1.1);
+    scene.add(sm);
+  }
+
+  let t = idx * 1.3;
+  function animate() {
+    requestAnimationFrame(animate);
+    t += 0.012;
+    main.rotation.y = t * 0.5;
+    ring.rotation.z = t * 0.3;
+    main.position.y = Math.sin(t) * 0.08;
+    renderer.render(scene, camera);
+  }
+  animate();
+});
+
+/* ── PRODUCT MINI SCENES ── */
+const prodColors = [
+  { main: 0xc4956a, accent: 0xf5d5c8, top: 0xd4af7a },
+  { main: 0xf5d5c8, accent: 0xe8b0a0, top: 0xffeedd },
+  { main: 0xe8647a, accent: 0xf5a0b0, top: 0xffd5e0 },
+  { main: 0x9070a8, accent: 0xd0b0d8, top: 0xe8d8f0 },
+];
+
+[0,1,2,3].forEach(idx => {
+  const canvas = document.getElementById(`prod-canvas-${idx}`);
+  if (!canvas) return;
+  const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 100);
+  camera.position.z = 3.5;
+
+  function resize() {
+    const w = canvas.parentElement.offsetWidth;
+    const h = canvas.parentElement.offsetHeight;
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  scene.add(new THREE.AmbientLight(0xffeedd, 0.7));
+  const dl = new THREE.DirectionalLight(0xffffff, 1.8);
+  dl.position.set(2, 4, 3);
+  scene.add(dl);
+  const pl = new THREE.PointLight(prodColors[idx].accent, 1, 10);
+  pl.position.set(-2, -1, 2);
+  scene.add(pl);
+
+  const c = prodColors[idx];
+
+  // Bottle body
+  const bGeo = new THREE.CylinderGeometry(0.3, 0.35, 1.2, 32);
+  const bMat = new THREE.MeshStandardMaterial({ color: c.main, roughness: 0.05, metalness: 0.7, transparent: true, opacity: 0.9 });
+  const bottle = new THREE.Mesh(bGeo, bMat);
+  bottle.position.y = -0.1;
+  scene.add(bottle);
+
+  // Neck
+  const nGeo = new THREE.CylinderGeometry(0.12, 0.25, 0.35, 24);
+  const nMat = new THREE.MeshStandardMaterial({ color: c.main, roughness: 0.1, metalness: 0.6 });
+  const neck = new THREE.Mesh(nGeo, nMat);
+  neck.position.y = 0.77;
+  scene.add(neck);
+
+  // Cap
+  const capGeo = new THREE.CylinderGeometry(0.15, 0.14, 0.3, 24);
+  const capMat = new THREE.MeshStandardMaterial({ color: c.top, roughness: 0.05, metalness: 0.9 });
+  const cap = new THREE.Mesh(capGeo, capMat);
+  cap.position.y = 1.1;
+  scene.add(cap);
+
+  // Label strip
+  const lGeo = new THREE.CylinderGeometry(0.305, 0.355, 0.6, 32, 1, true);
+  const lMat = new THREE.MeshStandardMaterial({ color: c.accent, roughness: 0.5, metalness: 0.1, transparent: true, opacity: 0.6, side: THREE.FrontSide });
+  scene.add(new THREE.Mesh(lGeo, lMat));
+
+  // Particle halo
+  const pGeo = new THREE.BufferGeometry();
+  const pPos = new Float32Array(60 * 3);
+  for (let i = 0; i < 60; i++) {
+    const a = Math.random() * PI2, r = 0.8 + Math.random() * 0.6;
+    pPos[i*3] = Math.cos(a) * r;
+    pPos[i*3+1] = (Math.random() - 0.5) * 2.5;
+    pPos[i*3+2] = Math.sin(a) * r;
+  }
+  pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
+  scene.add(new THREE.Points(pGeo, new THREE.PointsMaterial({ color: c.accent, size: 0.05, transparent: true, opacity: 0.6 })));
+
+  let t = idx * 0.8;
+  const group = new THREE.Group();
+  group.add(bottle); group.add(neck); group.add(cap);
+  scene.add(group);
+
+  const card = canvas.closest('.product-card');
+  let hover = false;
+  if (card) {
+    card.addEventListener('mouseenter', () => { hover = true; });
+    card.addEventListener('mouseleave', () => { hover = false; });
+  }
+
+  function animate() {
+    requestAnimationFrame(animate);
+    t += 0.012;
+    group.rotation.y = t * 0.4;
+    group.position.y = Math.sin(t * 0.7) * 0.1;
+    if (hover) {
+      group.rotation.y += 0.02;
+    }
+    renderer.render(scene, camera);
+  }
+  animate();
+});
+
+/* ── STICKY SHOWCASE SCENE ── */
+(function() {
+  const canvas = document.getElementById('showcase-canvas');
+  const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 200);
+  camera.position.z = 6;
+
+  function resize() {
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    renderer.setSize(w, h);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  scene.add(new THREE.AmbientLight(0xffeedd, 0.3));
+  const dl = new THREE.DirectionalLight(0xffd5b8, 1.2);
+  dl.position.set(3, 5, 5);
+  scene.add(dl);
+
+  // Pink point lights for drama
+  const lights = [
+    new THREE.PointLight(0xf5a0b0, 1.5, 20),
+    new THREE.PointLight(0xd4af7a, 1.2, 18),
+    new THREE.PointLight(0xa0c0ff, 0.8, 15),
+  ];
+  lights[0].position.set(-4, 3, 2);
+  lights[1].position.set(4, -2, 3);
+  lights[2].position.set(0, 4, -2);
+  lights.forEach(l => scene.add(l));
+
+  // Central showcase products (3 different shapes)
+  const showcaseItems = [];
+
+  // Item 0: Elegant sphere (skincare)
+  const g0 = new THREE.Group();
+  const s0 = new THREE.Mesh(
+    new THREE.SphereGeometry(1.2, 64, 64),
+    new THREE.MeshStandardMaterial({ color: 0xc4956a, roughness: 0.05, metalness: 0.8 })
+  );
+  const r0 = new THREE.Mesh(
+    new THREE.TorusGeometry(1.8, 0.06, 16, 100),
+    new THREE.MeshStandardMaterial({ color: 0xf5d5c8, roughness: 0.1, metalness: 0.9 })
+  );
+  r0.rotation.x = Math.PI / 3;
+  g0.add(s0); g0.add(r0);
+  g0.position.x = 2;
+  scene.add(g0);
+  showcaseItems.push(g0);
+
+  // Item 1: Diamond-ish (makeup)
+  const g1 = new THREE.Group();
+  const oct = new THREE.Mesh(
+    new THREE.OctahedronGeometry(1.1, 0),
+    new THREE.MeshStandardMaterial({ color: 0xe8647a, roughness: 0.0, metalness: 0.9, wireframe: false })
+  );
+  g1.add(oct);
+  const r1 = new THREE.Mesh(
+    new THREE.TorusGeometry(1.6, 0.05, 12, 80),
+    new THREE.MeshStandardMaterial({ color: 0xffd5e0, roughness: 0.1, metalness: 0.8 })
+  );
+  r1.rotation.x = 1.2;
+  g1.add(r1);
+  g1.position.x = 2;
+  g1.visible = false;
+  scene.add(g1);
+  showcaseItems.push(g1);
+
+  // Item 2: Icosahedron (fragrance)
+  const g2 = new THREE.Group();
+  const ico = new THREE.Mesh(
+    new THREE.IcosahedronGeometry(1.0, 1),
+    new THREE.MeshStandardMaterial({ color: 0x9070a8, roughness: 0.05, metalness: 0.85 })
+  );
+  g2.add(ico);
+  const r2 = new THREE.Mesh(
+    new THREE.TorusGeometry(1.7, 0.05, 12, 80),
+    new THREE.MeshStandardMaterial({ color: 0xe0d0f0, roughness: 0.1, metalness: 0.8 })
+  );
+  r2.rotation.x = -0.8;
+  g2.add(r2);
+  g2.position.x = 2;
+  g2.visible = false;
+  scene.add(g2);
+  showcaseItems.push(g2);
+
+  // Floating particles background
+  const pGeo = new THREE.BufferGeometry();
+  const pCount = 500;
+  const pPos = new Float32Array(pCount * 3);
+  for (let i = 0; i < pCount; i++) {
+    pPos[i*3] = (Math.random()-0.5)*20;
+    pPos[i*3+1] = (Math.random()-0.5)*15;
+    pPos[i*3+2] = (Math.random()-0.5)*10 - 3;
+  }
+  pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
+  const particles = new THREE.Points(pGeo, new THREE.PointsMaterial({ color: 0xf5d5c8, size: 0.06, transparent: true, opacity: 0.5 }));
+  scene.add(particles);
+
+  // Scroll-driven panel switching
+  let currentPanel = 0;
+  function switchTo(idx) {
+    if (idx === currentPanel) return;
+    showcaseItems[currentPanel].visible = false;
+    currentPanel = idx;
+    showcaseItems[currentPanel].visible = true;
+  }
+
+  // Listen to scroll position relative to #showcase
+  const showcase = document.getElementById('showcase');
+  const panels = document.querySelectorAll('.showcase-panel');
+  const panelTexts = document.querySelectorAll('.showcase-text');
+
+  function onScroll() {
+    const rect = showcase.getBoundingClientRect();
+    const total = showcase.offsetHeight - window.innerHeight;
+    const scrolled = -rect.top;
+    const progress = Math.max(0, Math.min(1, scrolled / total));
+    const panelIdx = Math.min(2, Math.floor(progress * 3));
+    switchTo(panelIdx);
+    panelTexts.forEach((t, i) => {
+      t.classList.toggle('active', i === panelIdx);
+    });
+  }
+  window.addEventListener('scroll', onScroll, { passive: true });
+
+  let t = 0;
+  function animate() {
+    requestAnimationFrame(animate);
+    t += 0.008;
+    showcaseItems.forEach((g, i) => {
+      g.rotation.y = t * (0.4 + i * 0.1);
+      g.rotation.x = Math.sin(t * 0.3 + i) * 0.1;
+      g.position.y = Math.sin(t * 0.6 + i) * 0.15;
+    });
+    particles.rotation.y = t * 0.02;
+    lights[0].position.x = Math.sin(t * 0.5) * 5;
+    lights[1].position.x = Math.cos(t * 0.4) * 5;
+    renderer.render(scene, camera);
+  }
+  animate();
+
+  // Make showcase tall enough for 3 panels
+  showcase.style.height = '300vh';
+  showcase.style.position = 'relative';
+  document.getElementById('showcase-canvas').style.cssText =
+    'position:sticky;top:0;width:100%;height:100vh;display:block;';
+  document.querySelector('.showcase-sections').style.cssText =
+    'position:absolute;top:0;left:0;right:0;height:100%;pointer-events:none;';
+  panels.forEach((p, i) => {
+    p.style.position = 'absolute';
+    p.style.top = (i * 100 / 3) + '%';
+    p.style.height = (100/3) + '%';
+  });
+})();
+
+/* ── INGREDIENTS SCENE ── */
+(function() {
+  const canvas = document.getElementById('ingredients-canvas');
+  const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 100);
+  camera.position.z = 5;
+
+  function resize() {
+    const el = canvas.parentElement;
+    const w = el.offsetWidth;
+    const h = el.offsetHeight;
+    renderer.setSize(w, h);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  scene.add(new THREE.AmbientLight(0xffeedd, 0.3));
+  const dl = new THREE.DirectionalLight(0xffd5b8, 1);
+  dl.position.set(2, 3, 4);
+  scene.add(dl);
+
+  // Gold-pink glow sphere
+  const core = new THREE.Mesh(
+    new THREE.SphereGeometry(1.0, 64, 64),
+    new THREE.MeshStandardMaterial({ color: 0xd4af7a, roughness: 0.0, metalness: 1.0, emissive: 0x8a5030, emissiveIntensity: 0.3 })
+  );
+  scene.add(core);
+
+  // Orbiting atoms
+  const atomData = [
+    { r: 2.2, speed: 0.7, tilt: 0.3, color: 0xf5d5c8 },
+    { r: 1.8, speed: -0.5, tilt: 1.1, color: 0xc4956a },
+    { r: 2.6, speed: 0.9, tilt: -0.6, color: 0xa0614a },
+  ];
+  const atoms = atomData.map(d => {
+    const group = new THREE.Group();
+    group.rotation.x = d.tilt;
+    scene.add(group);
+
+    const orbit = new THREE.Mesh(
+      new THREE.TorusGeometry(d.r, 0.015, 8, 100),
+      new THREE.MeshStandardMaterial({ color: d.color, roughness: 0.3, metalness: 0.5, transparent: true, opacity: 0.4 })
+    );
+    group.add(orbit);
+
+    const ball = new THREE.Mesh(
+      new THREE.SphereGeometry(0.12, 16, 16),
+      new THREE.MeshStandardMaterial({ color: d.color, roughness: 0.1, metalness: 0.8 })
+    );
+    ball.position.x = d.r;
+    group.add(ball);
+
+    return { group, ball, r: d.r, speed: d.speed };
+  });
+
+  // Particle cloud
+  const pCount = 200;
+  const pGeo = new THREE.BufferGeometry();
+  const pPos = new Float32Array(pCount * 3);
+  for (let i = 0; i < pCount; i++) {
+    const a = Math.random() * PI2;
+    const b = Math.random() * PI2;
+    const r = 1.5 + Math.random() * 2;
+    pPos[i*3] = Math.sin(a) * Math.cos(b) * r;
+    pPos[i*3+1] = Math.sin(b) * r * 0.7;
+    pPos[i*3+2] = Math.cos(a) * Math.cos(b) * r;
+  }
+  pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
+  scene.add(new THREE.Points(pGeo, new THREE.PointsMaterial({ color: 0xffd5b8, size: 0.04, transparent: true, opacity: 0.6 })));
+
+  let t = 0;
+  function animate() {
+    requestAnimationFrame(animate);
+    t += 0.01;
+    core.rotation.y = t * 0.3;
+    core.rotation.x = t * 0.15;
+    atoms.forEach(a => {
+      a.group.rotation.y = t * a.speed;
+    });
+    renderer.render(scene, camera);
+  }
+  animate();
+})();
+
+/* ── RESULTS SCENE ── */
+(function() {
+  const canvas = document.getElementById('results-canvas');
+  const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 100);
+  camera.position.z = 4;
+
+  function resize() {
+    const el = canvas.parentElement;
+    renderer.setSize(el.offsetWidth, el.offsetHeight);
+    camera.aspect = el.offsetWidth / el.offsetHeight;
+    camera.updateProjectionMatrix();
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  scene.background = new THREE.Color(0xf0d8d0);
+  scene.add(new THREE.AmbientLight(0xffeedd, 0.8));
+  const dl = new THREE.DirectionalLight(0xffffff, 1.5);
+  dl.position.set(3, 4, 5);
+  scene.add(dl);
+
+  // Two face silhouettes (before/after) as abstract shapes
+  function makeFace(x, skinColor) {
+    const g = new THREE.Group();
+
+    // Head
+    const head = new THREE.Mesh(
+      new THREE.SphereGeometry(0.7, 32, 32),
+      new THREE.MeshStandardMaterial({ color: skinColor, roughness: 0.6, metalness: 0.0 })
+    );
+    head.scale.set(1, 1.2, 0.8);
+    g.add(head);
+
+    // Neck
+    const neck = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.22, 0.26, 0.4, 16),
+      new THREE.MeshStandardMaterial({ color: skinColor, roughness: 0.6 })
+    );
+    neck.position.y = -0.8;
+    g.add(neck);
+
+    // Glow overlay for "after"
+    if (x > 0) {
+      const glow = new THREE.Mesh(
+        new THREE.SphereGeometry(0.72, 32, 32),
+        new THREE.MeshStandardMaterial({ color: 0xffd5b8, roughness: 0.3, metalness: 0.3, transparent: true, opacity: 0.35 })
+      );
+      glow.scale.set(1, 1.2, 0.8);
+      g.add(glow);
+    }
+
+    g.position.x = x;
+    return g;
+  }
+
+  scene.add(makeFace(-1.3, 0xd4956a));
+  scene.add(makeFace(1.3, 0xe8b080));
+
+  // Divider line
+  const divGeo = new THREE.BoxGeometry(0.02, 3, 0.1);
+  const divMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.1 });
+  scene.add(new THREE.Mesh(divGeo, divMat));
+
+  // Light particles for "after" side
+  const pGeo = new THREE.BufferGeometry();
+  const pPos = new Float32Array(80 * 3);
+  for (let i = 0; i < 80; i++) {
+    pPos[i*3] = Math.random() * 2.5;
+    pPos[i*3+1] = (Math.random()-0.5)*3;
+    pPos[i*3+2] = (Math.random()-0.5)*1;
+  }
+  pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
+  scene.add(new THREE.Points(pGeo, new THREE.PointsMaterial({ color: 0xffd5b8, size: 0.04, transparent: true, opacity: 0.7 })));
+
+  let t = 0;
+  function animate() {
+    requestAnimationFrame(animate);
+    t += 0.008;
+    camera.position.y = Math.sin(t * 0.3) * 0.1;
+    renderer.render(scene, camera);
+  }
+  animate();
+})();
+
+/* ── NEWSLETTER SCENE ── */
+(function() {
+  const canvas = document.getElementById('newsletter-canvas');
+  const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 100);
+  camera.position.z = 5;
+
+  function resize() {
+    const el = canvas.parentElement;
+    renderer.setSize(el.offsetWidth, el.offsetHeight);
+    camera.aspect = el.offsetWidth / el.offsetHeight;
+    camera.updateProjectionMatrix();
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  scene.add(new THREE.AmbientLight(0xffeedd, 0.5));
+
+  // Big blurry rose spheres
+  for (let i = 0; i < 8; i++) {
+    const r = 0.4 + Math.random() * 0.8;
+    const mesh = new THREE.Mesh(
+      new THREE.SphereGeometry(r, 16, 16),
+      new THREE.MeshStandardMaterial({
+        color: 0xa0614a,
+        roughness: 0.5,
+        transparent: true,
+        opacity: 0.15 + Math.random() * 0.15
+      })
+    );
+    mesh.position.set((Math.random()-0.5)*10, (Math.random()-0.5)*6, (Math.random()-0.5)*3 - 2);
+    mesh.userData.speed = 0.3 + Math.random() * 0.4;
+    mesh.userData.originY = mesh.position.y;
+    scene.add(mesh);
+    scene.userData['blob'+i] = mesh;
+  }
+
+  let t = 0;
+  const blobs = Object.values(scene.userData);
+  function animate() {
+    requestAnimationFrame(animate);
+    t += 0.006;
+    blobs.forEach((b, i) => {
+      if (b && b.userData) b.position.y = b.userData.originY + Math.sin(t * b.userData.speed + i) * 0.3;
+    });
+    renderer.render(scene, camera);
+  }
+  animate();
+})();
+
+/* ═══════════════════════════════════════════
+   GSAP SCROLL ANIMATIONS
+═══════════════════════════════════════════ */
+gsap.registerPlugin(ScrollTrigger);
+
+// Hero entrance
+gsap.to('#hero-tag',   { opacity: 1, y: 0, duration: 0.8, delay: 0.2 });
+gsap.to('#hero-title', { opacity: 1, y: 0, duration: 1.0, delay: 0.4 });
+gsap.to('#hero-desc',  { opacity: 1, y: 0, duration: 0.8, delay: 0.6 });
+gsap.to('#hero-cta',   { opacity: 1, y: 0, duration: 0.8, delay: 0.8 });
+gsap.to('#hero-counter',{opacity: 1, duration: 1.0, delay: 1.0 });
+
+// Hero elements start offset
+gsap.set(['#hero-tag','#hero-title','#hero-desc','#hero-cta'], { y: 30 });
+
+// Category cards stagger
+gsap.from('.cat-card', {
+  scrollTrigger: { trigger: '#categories', start: 'top 80%' },
+  opacity: 0, y: 40, stagger: 0.12, duration: 0.8, ease: 'power2.out'
+});
+
+// Product cards stagger
+gsap.from('.product-card', {
+  scrollTrigger: { trigger: '#bestsellers', start: 'top 75%' },
+  opacity: 0, y: 50, stagger: 0.1, duration: 0.7, ease: 'power2.out'
+});
+
+// Ingredients split
+gsap.from('.ingredients-left', {
+  scrollTrigger: { trigger: '#ingredients', start: 'top 80%' },
+  opacity: 0, x: -50, duration: 1, ease: 'power2.out'
+});
+gsap.from('.ingredients-right', {
+  scrollTrigger: { trigger: '#ingredients', start: 'top 80%' },
+  opacity: 0, x: 50, duration: 1, ease: 'power2.out'
+});
+gsap.from('.ingredients-list li', {
+  scrollTrigger: { trigger: '#ingredients', start: 'top 60%' },
+  opacity: 0, x: 20, stagger: 0.1, duration: 0.6, ease: 'power2.out'
+});
+
+// Stats counter animation
+document.querySelectorAll('.stat-number[data-target]').forEach(el => {
+  const target = parseInt(el.dataset.target);
+  ScrollTrigger.create({
+    trigger: el,
+    start: 'top 80%',
+    once: true,
+    onEnter: () => {
+      let cur = 0;
+      const step = () => {
+        cur = Math.min(target, cur + 2);
+        el.textContent = cur + '%';
+        if (cur < target) requestAnimationFrame(step);
+      };
+      step();
+    }
+  });
+});
+
+// Results section
+gsap.from('.before-after', {
+  scrollTrigger: { trigger: '#results', start: 'top 75%' },
+  opacity: 0, scale: 0.95, duration: 1, ease: 'power2.out'
+});
+gsap.from('.stat-item', {
+  scrollTrigger: { trigger: '#results', start: 'top 70%' },
+  opacity: 0, x: 30, stagger: 0.15, duration: 0.8, ease: 'power2.out'
+});
+
+// Reviews
+gsap.from('.review-card', {
+  scrollTrigger: { trigger: '#reviews', start: 'top 80%' },
+  opacity: 0, y: 30, stagger: 0.12, duration: 0.7, ease: 'power2.out'
+});
+
+// Newsletter
+gsap.from('.newsletter-left', {
+  scrollTrigger: { trigger: '#newsletter', start: 'top 80%' },
+  opacity: 0, x: -40, duration: 0.9, ease: 'power2.out'
+});
+gsap.from('.newsletter-right', {
+  scrollTrigger: { trigger: '#newsletter', start: 'top 80%' },
+  opacity: 0, x: 40, duration: 0.9, ease: 'power2.out'
+});
+
+/* ═══════════════════════════════════════════
+   NAV SCROLL BEHAVIOUR
+═══════════════════════════════════════════ */
+window.addEventListener('scroll', () => {
+  document.getElementById('nav').classList.toggle('scrolled', window.scrollY > 60);
+}, { passive: true });
+
+/* ═══════════════════════════════════════════
+   LOADER
+═══════════════════════════════════════════ */
+let progress = 0;
+const fill = document.getElementById('loader-fill');
+const interval = setInterval(() => {
+  progress += Math.random() * 15;
+  if (progress >= 100) {
+    progress = 100;
+    clearInterval(interval);
+    setTimeout(() => document.getElementById('loader').classList.add('hidden'), 400);
+  }
+  fill.style.width = progress + '%';
+}, 80);
+
+/* ═══════════════════════════════════════════
+   3D TILT ON PRODUCT CARDS
+═══════════════════════════════════════════ */
+document.querySelectorAll('.product-card').forEach(card => {
+  card.addEventListener('mousemove', e => {
+    const rect = card.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width - 0.5;
+    const y = (e.clientY - rect.top) / rect.height - 0.5;
+    card.style.transform = `perspective(600px) rotateY(${x*12}deg) rotateX(${-y*10}deg) translateZ(8px)`;
+  });
+  card.addEventListener('mouseleave', () => {
+    card.style.transform = 'perspective(600px) rotateY(0) rotateX(0) translateZ(0)';
+  });
+});
+</script>
+</body>
+</html>
