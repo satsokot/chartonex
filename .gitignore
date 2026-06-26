@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+*.pyo
+*.session
+*.session-journal
+settings.json
+channels.json
+prices_*.csv
