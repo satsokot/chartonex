@@ -165,22 +165,38 @@ async def fetch_channel_prices(api_id, api_hash, phone, channels, limit, progres
         progress_cb(idx, total, f"در حال خواندن: {url}")
         try:
             entity = await client.get_entity(url)
-            found_in_channel = 0
+            latest_buy = None
+            latest_sell = None
+            latest_buy_date = ""
+            latest_sell_date = ""
+            latest_buy_preview = ""
+            latest_sell_preview = ""
             async for msg in client.iter_messages(entity, limit=int(limit)):
                 if msg.text:
                     prices = extract_prices(msg.text)
                     if prices:
-                        found_in_channel += 1
-                        results.append({
-                            "channel": ch.get("name") or url,
-                            "url": url,
-                            "message_id": msg.id,
-                            "date": msg.date.strftime("%Y-%m-%d %H:%M") if msg.date else "",
-                            "buy": prices.get("buy"),
-                            "sell": prices.get("sell"),
-                            "text_preview": msg.text[:120].replace("\n", " "),
-                        })
-                        break  # only latest price message per channel
+                        date_str = msg.date.strftime("%Y-%m-%d %H:%M") if msg.date else ""
+                        preview = msg.text[:120].replace("\n", " ")
+                        if latest_buy is None and prices.get("buy"):
+                            latest_buy = prices["buy"]
+                            latest_buy_date = date_str
+                            latest_buy_preview = preview
+                        if latest_sell is None and prices.get("sell"):
+                            latest_sell = prices["sell"]
+                            latest_sell_date = date_str
+                            latest_sell_preview = preview
+                        if latest_buy is not None and latest_sell is not None:
+                            break
+            found_in_channel = 1 if (latest_buy or latest_sell) else 0
+            if found_in_channel:
+                results.append({
+                    "channel": ch.get("name") or url,
+                    "url": url,
+                    "date": latest_buy_date or latest_sell_date,
+                    "buy": latest_buy,
+                    "sell": latest_sell,
+                    "text_preview": latest_buy_preview or latest_sell_preview,
+                })
             if found_in_channel == 0:
                 progress_cb(idx, total, f"⚠ هیچ قیمتی در {url} یافت نشد — نمونه پیام‌های خام:")
                 count = 0
