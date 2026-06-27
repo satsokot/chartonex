@@ -177,6 +177,7 @@ async def fetch_channel_prices(api_id, api_hash, phone, channels, limit, progres
                             "sell": prices.get("sell"),
                             "text_preview": msg.text[:120].replace("\n", " "),
                         })
+                        break  # only latest price message per channel
             if found_in_channel == 0:
                 progress_cb(idx, total, f"⚠ هیچ قیمتی در {url} یافت نشد — نمونه پیام‌های خام:")
                 count = 0
