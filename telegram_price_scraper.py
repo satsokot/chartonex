@@ -216,6 +216,9 @@ class ChartoneXApp(ctk.CTk):
         self.channels = load_channels()
         self.settings = load_settings()
         self.results = []
+        self._running = False          # auto-refresh loop flag
+        self._stop_flag = threading.Event()
+        self._next_run_after_id = None
 
         self._build_ui()
         self._refresh_channel_list()
@@ -502,23 +505,48 @@ class ChartoneXApp(ctk.CTk):
                      font=ctk.CTkFont("Segoe UI", 13, "bold"),
                      text_color=COLORS["text_primary"]).pack(anchor="w", padx=16, pady=(14, 8))
 
-        limit_row = ctk.CTkFrame(cfg_card, fg_color="transparent")
-        limit_row.pack(fill="x", padx=16, pady=(0, 14))
-        ctk.CTkLabel(limit_row, text="تعداد پیام‌ها:", width=120,
-                     text_color=COLORS["text_secondary"],
+        interval_row = ctk.CTkFrame(cfg_card, fg_color="transparent")
+        interval_row.pack(fill="x", padx=16, pady=(0, 14))
+
+        ctk.CTkLabel(interval_row, text="بازه تکرار:",
+                     width=110, text_color=COLORS["text_secondary"],
                      font=ctk.CTkFont("Segoe UI", 12)).pack(side="left")
-        self.limit_slider = ctk.CTkSlider(limit_row, from_=5, to=100,
-                                          number_of_steps=19,
-                                          button_color=COLORS["accent"],
-                                          button_hover_color=COLORS["accent_hover"],
-                                          command=self._update_limit_label)
-        self.limit_slider.set(int(self.settings.get("limit", 20)))
-        self.limit_slider.pack(side="left", fill="x", expand=True, padx=12)
-        self.limit_value_label = ctk.CTkLabel(limit_row, text=self.settings.get("limit", "20"),
-                                              width=36,
-                                              font=ctk.CTkFont("Segoe UI", 12, "bold"),
-                                              text_color=COLORS["accent"])
-        self.limit_value_label.pack(side="left")
+
+        # Preset interval buttons
+        self._interval_seconds = int(self.settings.get("interval", 60))
+        self._interval_var = tk.StringVar(value=str(self._interval_seconds))
+
+        presets = [
+            ("۳۰ ثانیه", 30),
+            ("۱ دقیقه",  60),
+            ("۵ دقیقه",  300),
+            ("۱۵ دقیقه", 900),
+            ("۳۰ دقیقه", 1800),
+            ("۱ ساعت",   3600),
+        ]
+        self._preset_btns = {}
+        btn_frame = ctk.CTkFrame(interval_row, fg_color="transparent")
+        btn_frame.pack(side="left", fill="x", expand=True, padx=(8, 0))
+
+        for label, secs in presets:
+            btn = ctk.CTkButton(
+                btn_frame, text=label, width=80, height=30,
+                corner_radius=6,
+                fg_color=COLORS["accent"] if secs == self._interval_seconds else COLORS["bg_input"],
+                hover_color=COLORS["accent_hover"],
+                text_color="#000000" if secs == self._interval_seconds else COLORS["text_primary"],
+                font=ctk.CTkFont("Segoe UI", 11),
+                command=lambda s=secs, l=label: self._set_interval(s),
+            )
+            btn.pack(side="left", padx=3)
+            self._preset_btns[secs] = btn
+
+        self.interval_label = ctk.CTkLabel(interval_row,
+                                           text=self._fmt_interval(self._interval_seconds),
+                                           width=80,
+                                           font=ctk.CTkFont("Segoe UI", 12, "bold"),
+                                           text_color=COLORS["accent"])
+        self.interval_label.pack(side="left", padx=(10, 0))
 
         # Status + progress
         status_card = ctk.CTkFrame(page, fg_color=COLORS["bg_card"],
@@ -532,24 +560,43 @@ class ChartoneXApp(ctk.CTk):
         self.progress_bar.pack(fill="x", padx=16, pady=(14, 6))
         self.progress_bar.set(0)
 
-        self.status_label = ctk.CTkLabel(status_card, text="آماده برای شروع",
+        status_inner = ctk.CTkFrame(status_card, fg_color="transparent")
+        status_inner.pack(fill="x", padx=16, pady=(0, 14))
+
+        self.status_label = ctk.CTkLabel(status_inner, text="آماده برای شروع",
                                          font=ctk.CTkFont("Segoe UI", 11),
                                          text_color=COLORS["text_secondary"])
-        self.status_label.pack(anchor="w", padx=16, pady=(0, 14))
+        self.status_label.pack(side="left")
+
+        self.countdown_label = ctk.CTkLabel(status_inner, text="",
+                                            font=ctk.CTkFont("Segoe UI", 11, "bold"),
+                                            text_color=COLORS["accent_yellow"])
+        self.countdown_label.pack(side="right")
 
         # Buttons
         btn_row = ctk.CTkFrame(page, fg_color="transparent")
         btn_row.pack(fill="x", padx=24, pady=8)
 
         self.start_btn = ctk.CTkButton(
-            btn_row, text="▶  شروع استخراج",
+            btn_row, text="▶  شروع",
             height=44, corner_radius=10,
             fg_color=COLORS["accent"], hover_color=COLORS["accent_hover"],
             text_color="#000000",
             font=ctk.CTkFont("Segoe UI", 14, "bold"),
             command=self._start_scraping,
         )
-        self.start_btn.pack(side="left", padx=(0, 12))
+        self.start_btn.pack(side="left", padx=(0, 8))
+
+        self.stop_btn = ctk.CTkButton(
+            btn_row, text="⏹  توقف",
+            height=44, corner_radius=10,
+            fg_color=COLORS["accent_red"], hover_color="#C73E33",
+            text_color="#ffffff",
+            font=ctk.CTkFont("Segoe UI", 14, "bold"),
+            state="disabled",
+            command=self._stop_scraping,
+        )
+        self.stop_btn.pack(side="left", padx=(0, 8))
 
         ctk.CTkButton(
             btn_row, text="📊  مشاهده خروجی",
@@ -623,8 +670,24 @@ class ChartoneXApp(ctk.CTk):
         menu.add_command(label="کپی همه", command=self._copy_log)
         menu.tk_popup(event.x_root, event.y_root)
 
-    def _update_limit_label(self, val):
-        self.limit_value_label.configure(text=str(int(val)))
+    def _fmt_interval(self, secs: int) -> str:
+        if secs < 60:
+            return f"{secs} ثانیه"
+        elif secs < 3600:
+            return f"{secs // 60} دقیقه"
+        else:
+            return f"{secs // 3600} ساعت"
+
+    def _set_interval(self, secs: int):
+        self._interval_seconds = secs
+        self.settings["interval"] = secs
+        save_settings(self.settings)
+        self.interval_label.configure(text=self._fmt_interval(secs))
+        for s, btn in self._preset_btns.items():
+            if s == secs:
+                btn.configure(fg_color=COLORS["accent"], text_color="#000000")
+            else:
+                btn.configure(fg_color=COLORS["bg_input"], text_color=COLORS["text_primary"])
 
     def _log(self, msg: str):
         ts = datetime.now().strftime("%H:%M:%S")
@@ -637,7 +700,6 @@ class ChartoneXApp(ctk.CTk):
         if not self.channels:
             messagebox.showwarning("بدون کانال", "لطفاً ابتدا کانال‌هایی اضافه کنید.")
             return
-
         s = self.settings
         if not s.get("api_id") or not s.get("api_hash") or not s.get("phone"):
             messagebox.showwarning(
@@ -647,18 +709,37 @@ class ChartoneXApp(ctk.CTk):
             self._show_page("settings")
             return
 
-        self.start_btn.configure(state="disabled", text="در حال اجرا...")
-        self.progress_bar.set(0)
-        self.results = []
-        self._log(f"شروع استخراج از {len(self.channels)} کانال...")
+        self._running = True
+        self._stop_flag.clear()
+        self.start_btn.configure(state="disabled")
+        self.stop_btn.configure(state="normal")
+        self._run_once()
 
-        limit = int(self.limit_slider.get())
+    def _stop_scraping(self):
+        self._running = False
+        self._stop_flag.set()
+        if self._next_run_after_id:
+            self.after_cancel(self._next_run_after_id)
+            self._next_run_after_id = None
+        self.start_btn.configure(state="normal")
+        self.stop_btn.configure(state="disabled")
+        self.countdown_label.configure(text="")
+        self.status_label.configure(text="متوقف شد")
+        self._log("⏹ استخراج متوقف شد.")
+
+    def _run_once(self):
+        if not self._running:
+            return
+        s = self.settings
+        self.progress_bar.set(0)
+        self.countdown_label.configure(text="")
+        self._log(f"── شروع دور جدید استخراج از {len(self.channels)} کانال ──")
 
         def progress_cb(done, total, msg):
             self.after(0, lambda: self._on_progress(done, total, msg))
 
         def result_cb(results):
-            self.after(0, lambda: self._on_results(results))
+            self.after(0, lambda: self._on_results_auto(results))
 
         def error_cb(msg):
             self.after(0, lambda: self._on_error(msg))
@@ -682,13 +763,36 @@ class ChartoneXApp(ctk.CTk):
             loop.run_until_complete(
                 fetch_channel_prices(
                     s["api_id"], s["api_hash"], s["phone"],
-                    self.channels, limit,
+                    self.channels, 20,
                     progress_cb, result_cb, error_cb, code_cb, password_cb
                 )
             )
             loop.close()
 
         threading.Thread(target=run, daemon=True).start()
+
+    def _on_results_auto(self, results):
+        """Handle results and schedule next run after interval."""
+        self.results = results
+        self._log(f"✓ {len(results)} نتیجه یافت شد.")
+        self._refresh_output()
+        if self._running:
+            self._start_countdown(self._interval_seconds)
+
+    def _start_countdown(self, remaining: int):
+        if not self._running:
+            return
+        if remaining <= 0:
+            self.countdown_label.configure(text="")
+            self._run_once()
+            return
+        mins, secs = divmod(remaining, 60)
+        if mins > 0:
+            txt = f"دور بعدی: {mins:02d}:{secs:02d}"
+        else:
+            txt = f"دور بعدی: {secs} ثانیه"
+        self.countdown_label.configure(text=txt)
+        self._next_run_after_id = self.after(1000, lambda: self._start_countdown(remaining - 1))
 
     def _ask_input(self, title, prompt, secret=False):
         """Show a blocking dialog on the main thread and return the entered value."""
@@ -742,12 +846,6 @@ class ChartoneXApp(ctk.CTk):
         self.status_label.configure(text=msg)
         self._log(msg)
 
-    def _on_results(self, results):
-        self.results = results
-        self.start_btn.configure(state="normal", text="▶  شروع استخراج")
-        self._log(f"✓ استخراج تمام شد. {len(results)} نتیجه یافت شد.")
-        self._refresh_output()
-        self._show_page("output")
 
     def _on_error(self, msg):
         self.start_btn.configure(state="normal", text="▶  شروع استخراج")
