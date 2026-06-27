@@ -536,6 +536,15 @@ class ChartoneXApp(ctk.CTk):
                         13, color=C["text3"]).pack(pady=60)
             return
 
+        # میانگین قیمت کانال‌های تک‌نرخی
+        single_prices = []
+        for r in self.results:
+            has_buy  = bool(r.get("buy"))
+            has_sell = bool(r.get("sell"))
+            if has_buy != has_sell:  # فقط یکی از دو قیمت موجود است
+                single_prices.append(r.get("buy") or r.get("sell"))
+        avg_single = (sum(single_prices) / len(single_prices)) if single_prices else None
+
         # Two-column grid
         grid = ctk.CTkFrame(self._out_scroll, fg_color="transparent")
         grid.pack(fill="both", expand=True)
@@ -545,9 +554,13 @@ class ChartoneXApp(ctk.CTk):
         for i, r in enumerate(self.results):
             col = i % 2
             row = i // 2
-            self._channel_price_card(grid, r, row, col)
+            self._channel_price_card(grid, r, row, col, avg_single)
 
-    def _channel_price_card(self, grid, r, row, col):
+    def _channel_price_card(self, grid, r, row, col, avg_single=None):
+        has_buy  = bool(r.get("buy"))
+        has_sell = bool(r.get("sell"))
+        is_single = has_buy != has_sell  # تک‌نرخی: فقط یکی دارد
+
         card = self._card(grid)
         card.grid(row=row, column=col, padx=6, pady=6, sticky="nsew")
 
@@ -557,34 +570,65 @@ class ChartoneXApp(ctk.CTk):
 
         self._label(hdr, r.get("channel", "")[:30], 12, True).pack(
             side="right", padx=12, pady=8)
-        self._label(hdr, r.get("date", ""), 9, color=C["text3"]).pack(
-            side="left", padx=12, pady=8)
 
-        # Buy / Sell boxes
+        # نشان «تک‌نرخی» برای کانال‌های تک‌نرخی
+        if is_single:
+            self._label(hdr, "تک‌نرخی", 9, color=C["gold"]).pack(
+                side="left", padx=4, pady=8)
+        self._label(hdr, r.get("date", ""), 9, color=C["text3"]).pack(
+            side="left", padx=8, pady=8)
+
         prices_row = ctk.CTkFrame(card, fg_color="transparent")
         prices_row.pack(fill="x", padx=10, pady=(0, 10))
 
-        # Sell box (left in card)
-        sell_box = ctk.CTkFrame(prices_row, fg_color=C["sell_dim"],
-                                corner_radius=10, border_width=1,
-                                border_color=C["sell"])
-        sell_box.pack(side="left", fill="both", expand=True, padx=(0, 4))
-        self._label(sell_box, "فروش", 10, color=C["sell"]).pack(
-            anchor="e", padx=12, pady=(10, 0))
-        sell_val = f"{r['sell']:,.0f}" if r.get("sell") else "—"
-        self._label(sell_box, sell_val, 20, True, color=C["sell"]).pack(
-            anchor="e", padx=12, pady=(0, 10))
+        if is_single:
+            # ── کادر قیمت واحد ──────────────────────────────────────────────
+            single_val = r.get("buy") or r.get("sell")
+            label_txt  = "خرید" if has_buy else "فروش"
+            box_color  = C["buy"] if has_buy else C["sell"]
+            box_bg     = C["buy_dim"] if has_buy else C["sell_dim"]
 
-        # Buy box (right in card — RTL)
-        buy_box = ctk.CTkFrame(prices_row, fg_color=C["buy_dim"],
-                               corner_radius=10, border_width=1,
-                               border_color=C["buy"])
-        buy_box.pack(side="right", fill="both", expand=True, padx=(4, 0))
-        self._label(buy_box, "خرید", 10, color=C["buy"]).pack(
-            anchor="e", padx=12, pady=(10, 0))
-        buy_val = f"{r['buy']:,.0f}" if r.get("buy") else "—"
-        self._label(buy_box, buy_val, 20, True, color=C["buy"]).pack(
-            anchor="e", padx=12, pady=(0, 10))
+            price_box = ctk.CTkFrame(prices_row, fg_color=box_bg,
+                                     corner_radius=10, border_width=1,
+                                     border_color=box_color)
+            price_box.pack(side="right", fill="both", expand=True, padx=(4, 0))
+            self._label(price_box, label_txt, 10, color=box_color).pack(
+                anchor="e", padx=12, pady=(10, 0))
+            self._label(price_box, f"{single_val:,.0f}", 20, True,
+                        color=box_color).pack(anchor="e", padx=12, pady=(0, 10))
+
+            # ── کادر میانگین ─────────────────────────────────────────────────
+            avg_box = ctk.CTkFrame(prices_row, fg_color=C["input"],
+                                   corner_radius=10, border_width=1,
+                                   border_color=C["border2"])
+            avg_box.pack(side="left", fill="both", expand=True, padx=(0, 4))
+            self._label(avg_box, "میانگین قیمت", 10, color=C["text2"]).pack(
+                anchor="e", padx=12, pady=(10, 0))
+            avg_txt = f"{avg_single:,.0f}" if avg_single else "—"
+            self._label(avg_box, avg_txt, 20, True, color=C["text2"]).pack(
+                anchor="e", padx=12, pady=(0, 10))
+
+        else:
+            # ── دو‌نرخی: خرید + فروش (رفتار قبلی) ──────────────────────────
+            sell_box = ctk.CTkFrame(prices_row, fg_color=C["sell_dim"],
+                                    corner_radius=10, border_width=1,
+                                    border_color=C["sell"])
+            sell_box.pack(side="left", fill="both", expand=True, padx=(0, 4))
+            self._label(sell_box, "فروش", 10, color=C["sell"]).pack(
+                anchor="e", padx=12, pady=(10, 0))
+            sell_val = f"{r['sell']:,.0f}" if has_sell else "—"
+            self._label(sell_box, sell_val, 20, True, color=C["sell"]).pack(
+                anchor="e", padx=12, pady=(0, 10))
+
+            buy_box = ctk.CTkFrame(prices_row, fg_color=C["buy_dim"],
+                                   corner_radius=10, border_width=1,
+                                   border_color=C["buy"])
+            buy_box.pack(side="right", fill="both", expand=True, padx=(4, 0))
+            self._label(buy_box, "خرید", 10, color=C["buy"]).pack(
+                anchor="e", padx=12, pady=(10, 0))
+            buy_val = f"{r['buy']:,.0f}" if has_buy else "—"
+            self._label(buy_box, buy_val, 20, True, color=C["buy"]).pack(
+                anchor="e", padx=12, pady=(0, 10))
 
     def _export_csv(self):
         if not self.results:
