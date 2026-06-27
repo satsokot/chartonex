@@ -582,31 +582,16 @@ class ChartoneXApp(ctk.CTk):
         prices_row.pack(fill="x", padx=10, pady=(0, 10))
 
         if is_single:
-            # ── کادر قیمت واحد ──────────────────────────────────────────────
+            # ── یک کادر میانگین قیمت ─────────────────────────────────────────
             single_val = r.get("buy") or r.get("sell")
-            label_txt  = "خرید" if has_buy else "فروش"
-            box_color  = C["buy"] if has_buy else C["sell"]
-            box_bg     = C["buy_dim"] if has_buy else C["sell_dim"]
-
-            price_box = ctk.CTkFrame(prices_row, fg_color=box_bg,
-                                     corner_radius=10, border_width=1,
-                                     border_color=box_color)
-            price_box.pack(side="right", fill="both", expand=True, padx=(4, 0))
-            self._label(price_box, label_txt, 10, color=box_color).pack(
-                anchor="e", padx=12, pady=(10, 0))
-            self._label(price_box, f"{single_val:,.0f}", 20, True,
-                        color=box_color).pack(anchor="e", padx=12, pady=(0, 10))
-
-            # ── کادر میانگین ─────────────────────────────────────────────────
             avg_box = ctk.CTkFrame(prices_row, fg_color=C["input"],
                                    corner_radius=10, border_width=1,
-                                   border_color=C["border2"])
-            avg_box.pack(side="left", fill="both", expand=True, padx=(0, 4))
-            self._label(avg_box, "میانگین قیمت", 10, color=C["text2"]).pack(
-                anchor="e", padx=12, pady=(10, 0))
-            avg_txt = f"{avg_single:,.0f}" if avg_single else "—"
-            self._label(avg_box, avg_txt, 20, True, color=C["text2"]).pack(
-                anchor="e", padx=12, pady=(0, 10))
+                                   border_color=C["gold"])
+            avg_box.pack(fill="both", expand=True)
+            self._label(avg_box, "میانگین قیمت", 11, color=C["gold"]).pack(
+                anchor="e", padx=16, pady=(12, 0))
+            self._label(avg_box, f"{single_val:,.0f}", 24, True,
+                        color=C["gold"]).pack(anchor="e", padx=16, pady=(0, 12))
 
         else:
             # ── دو‌نرخی: خرید + فروش (رفتار قبلی) ──────────────────────────
