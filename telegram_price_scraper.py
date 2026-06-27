@@ -75,41 +75,52 @@ def save_settings(settings):
 
 
 # ── Price Extraction ──────────────────────────────────────────────────────────
+FA_DIGITS = str.maketrans("۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩", "01234567890123456789")
+
+NUM = r'([\d۰-۹٠-٩][،,\d۰-۹٠-٩\.]*)'
+
 PRICE_PATTERNS = [
-    # "خرید: 98500" / "فروش: 99000"
-    (r'خرید[\s:：\-]+([0-9][0-9,\.]+)', "buy"),
-    (r'فروش[\s:：\-]+([0-9][0-9,\.]+)', "sell"),
-    # "buy: 98500" / "sell: 99000"
-    (r'buy[\s:：\-]+([0-9][0-9,\.]+)', "buy"),
-    (r'sell[\s:：\-]+([0-9][0-9,\.]+)', "sell"),
-    # "قیمت خرید تتر" patterns
-    (r'قیمت\s*خرید[\s:：\-]+([0-9][0-9,\.]+)', "buy"),
-    (r'قیمت\s*فروش[\s:：\-]+([0-9][0-9,\.]+)', "sell"),
-    # USDT / tether with optional word between keyword and price
-    (r'قیمت\s*خرید\s*\w*\s*[:\s]+([0-9][0-9,\.]+)', "buy"),
-    (r'قیمت\s*فروش\s*\w*\s*[:\s]+([0-9][0-9,\.]+)', "sell"),
-    (r'tether[\s\|خرید:]+([0-9][0-9,\.]+)', "buy"),
-    # Arrow patterns: خرید ← 98500
-    (r'خرید\s*[←→:]\s*([0-9][0-9,\.]+)', "buy"),
-    (r'فروش\s*[←→:]\s*([0-9][0-9,\.]+)', "sell"),
+    # خرید / فروش مستقیم
+    (rf'خرید\s*[:\-|]\s*{NUM}', "buy"),
+    (rf'فروش\s*[:\-|]\s*{NUM}', "sell"),
+    # buy / sell انگلیسی
+    (rf'buy\s*[:\-|]\s*{NUM}', "buy"),
+    (rf'sell\s*[:\-|]\s*{NUM}', "sell"),
+    # قیمت خرید / قیمت فروش (با یا بدون کلمه وسط)
+    (rf'قیمت\s*خرید[^\d۰-۹٠-٩]{{0,15}}{NUM}', "buy"),
+    (rf'قیمت\s*فروش[^\d۰-۹٠-٩]{{0,15}}{NUM}', "sell"),
+    # خرید / فروش با فلش یا بدون جداکننده
+    (rf'خرید\s*[←→➡⬅🔴🟢✅]?\s*{NUM}', "buy"),
+    (rf'فروش\s*[←→➡⬅🔴🟢✅]?\s*{NUM}', "sell"),
+    # تتر / USDT
+    (rf'تتر\s*[:\-]?\s*خرید\s*[:\-]?\s*{NUM}', "buy"),
+    (rf'تتر\s*[:\-]?\s*فروش\s*[:\-]?\s*{NUM}', "sell"),
+    (rf'usdt\s*[:\-]?\s*{NUM}', "buy"),
+    # نرخ خرید / نرخ فروش
+    (rf'نرخ\s*خرید[^\d۰-۹٠-٩]{{0,10}}{NUM}', "buy"),
+    (rf'نرخ\s*فروش[^\d۰-۹٠-٩]{{0,10}}{NUM}', "sell"),
 ]
+
+
+def _to_float(raw: str):
+    """Convert Persian/Arabic digits and remove separators, return float or None."""
+    cleaned = raw.translate(FA_DIGITS).replace(",", "").replace("،", "").replace("٬", "").strip()
+    try:
+        val = float(cleaned)
+        return val if 10_000 < val < 100_000_000 else None
+    except ValueError:
+        return None
 
 
 def extract_prices(text: str):
     """Extract buy/sell prices from a message text. Returns dict with 'buy' and/or 'sell'."""
-    text_lower = text.lower()
     prices = {}
     for pattern, side in PRICE_PATTERNS:
         m = re.search(pattern, text, re.IGNORECASE)
         if m:
-            raw = m.group(1).replace(",", "").replace("٬", "")
-            try:
-                val = float(raw)
-                if 1000 < val < 10_000_000:   # sanity check for toman/rial range
-                    if side not in prices:
-                        prices[side] = val
-            except ValueError:
-                pass
+            val = _to_float(m.group(1))
+            if val and side not in prices:
+                prices[side] = val
     return prices
 
 
@@ -148,10 +159,12 @@ async def fetch_channel_prices(api_id, api_hash, phone, channels, limit, progres
         progress_cb(idx, total, f"در حال خواندن: {url}")
         try:
             entity = await client.get_entity(url)
+            found_in_channel = 0
             async for msg in client.iter_messages(entity, limit=int(limit)):
                 if msg.text:
                     prices = extract_prices(msg.text)
                     if prices:
+                        found_in_channel += 1
                         results.append({
                             "channel": ch.get("name") or url,
                             "url": url,
@@ -161,6 +174,16 @@ async def fetch_channel_prices(api_id, api_hash, phone, channels, limit, progres
                             "sell": prices.get("sell"),
                             "text_preview": msg.text[:120].replace("\n", " "),
                         })
+            if found_in_channel == 0:
+                # ارسال نمونه پیام برای دیباگ
+                sample = []
+                async for msg in client.iter_messages(entity, limit=3):
+                    if msg.text:
+                        sample.append(msg.text[:200].replace("\n", " | "))
+                if sample:
+                    progress_cb(idx, total, f"⚠ هیچ قیمتی در {url} یافت نشد. نمونه پیام‌ها:")
+                    for s in sample:
+                        progress_cb(idx, total, f"    📄 {s}")
         except FloodWaitError as e:
             error_cb(f"Flood wait از تلگرام: {e.seconds} ثانیه صبر کنید")
             break
@@ -547,16 +570,49 @@ class ChartoneXApp(ctk.CTk):
                                 border_color=COLORS["border"])
         log_card.pack(fill="both", expand=True, padx=24, pady=(8, 24))
 
-        ctk.CTkLabel(log_card, text="گزارش عملیات",
+        log_header_row = ctk.CTkFrame(log_card, fg_color="transparent")
+        log_header_row.pack(fill="x", padx=16, pady=(12, 4))
+        ctk.CTkLabel(log_header_row, text="گزارش عملیات",
                      font=ctk.CTkFont("Segoe UI", 12, "bold"),
-                     text_color=COLORS["text_primary"]).pack(anchor="w", padx=16, pady=(12, 6))
+                     text_color=COLORS["text_primary"]).pack(side="left")
+        ctk.CTkButton(log_header_row, text="📋 کپی همه",
+                      width=90, height=26, corner_radius=6,
+                      fg_color=COLORS["bg_input"], hover_color=COLORS["border"],
+                      text_color=COLORS["text_secondary"],
+                      font=ctk.CTkFont("Segoe UI", 10),
+                      command=self._copy_log).pack(side="right")
 
         self.log_text = ctk.CTkTextbox(log_card, fg_color=COLORS["bg_input"],
                                        text_color=COLORS["text_secondary"],
                                        font=ctk.CTkFont("Courier New", 11),
                                        corner_radius=8, border_width=0)
         self.log_text.pack(fill="both", expand=True, padx=12, pady=(0, 12))
+        # Allow selecting and copying text with Ctrl+C / Ctrl+A
+        self.log_text.bind("<Control-c>", lambda e: None)   # let default copy work
+        self.log_text.bind("<Control-a>", lambda e: self._select_all_log())
+        self.log_text.bind("<Button-3>", self._log_context_menu)
         self.log_text.configure(state="disabled")
+
+    def _copy_log(self):
+        content = self.log_text.get("1.0", "end").strip()
+        if content:
+            self.clipboard_clear()
+            self.clipboard_append(content)
+
+    def _select_all_log(self):
+        self.log_text.configure(state="normal")
+        self.log_text.tag_add("sel", "1.0", "end")
+        self.log_text.configure(state="disabled")
+
+    def _log_context_menu(self, event):
+        menu = tk.Menu(self, tearoff=0,
+                       bg=COLORS["bg_card"], fg=COLORS["text_primary"],
+                       activebackground=COLORS["accent"], activeforeground="#000000",
+                       font=("Segoe UI", 11))
+        menu.add_command(label="کپی انتخاب‌شده", command=lambda: self.log_text.event_generate("<<Copy>>"))
+        menu.add_command(label="انتخاب همه", command=self._select_all_log)
+        menu.add_command(label="کپی همه", command=self._copy_log)
+        menu.tk_popup(event.x_root, event.y_root)
 
     def _update_limit_label(self, val):
         self.limit_value_label.configure(text=str(int(val)))
