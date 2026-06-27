@@ -252,16 +252,29 @@ class ChartoneXApp(ctk.CTk):
         self._bind_paste_to_all_entries()
 
     def _bind_paste_to_all_entries(self):
-        """Enable Ctrl+V and right-click paste on all CTkEntry widgets."""
+        """Enable Ctrl+V and right-click paste on all CTkEntry and CTkTextbox widgets."""
         def bind_entry(widget):
             if isinstance(widget, ctk.CTkEntry):
                 inner = widget._entry
                 inner.bind("<Control-v>", lambda e: self._paste(inner))
                 inner.bind("<Control-V>", lambda e: self._paste(inner))
                 inner.bind("<Button-3>", lambda e: self._show_paste_menu(e, inner))
+            elif isinstance(widget, ctk.CTkTextbox):
+                inner = widget._textbox
+                inner.bind("<Control-v>", lambda e: self._paste_textbox(inner))
+                inner.bind("<Control-V>", lambda e: self._paste_textbox(inner))
+                inner.bind("<Button-3>", lambda e: self._show_paste_menu(e, inner))
             for child in widget.winfo_children():
                 bind_entry(child)
         bind_entry(self)
+
+    def _paste_textbox(self, textbox_widget):
+        try:
+            text = self.clipboard_get()
+            textbox_widget.insert(tk.INSERT, text)
+        except Exception:
+            pass
+        return "break"
 
     def _paste(self, entry_widget):
         try:
