@@ -123,17 +123,21 @@ async def fetch_channel_prices(api_id, api_hash, phone, channels, limit, progres
         error_cb("Telethon is not installed. Run: pip install telethon")
         return
 
-    session_file = "chartonex_session"
+    # Session next to the script file so it persists across runs
+    session_file = str(Path(__file__).parent / "chartonex_session")
     client = TelegramClient(session_file, int(api_id), api_hash)
 
     try:
-        await client.start(
-            phone=phone,
-            code_callback=code_cb,
-            password=password_cb,
-        )
+        await client.connect()
+        if not await client.is_user_authorized():
+            await client.start(
+                phone=phone,
+                code_callback=code_cb,
+                password=password_cb,
+            )
     except Exception as e:
         error_cb(f"خطا در اتصال به تلگرام:\n{e}")
+        await client.disconnect()
         return
 
     results = []
