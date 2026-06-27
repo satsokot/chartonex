@@ -658,11 +658,22 @@ class ChartoneXApp(ctk.CTk):
         self._btn(bot, "💾  ذخیره CSV", self._export_csv, primary=False, h=36).pack(side="right")
 
     def _make_summary_card(self, parent, label, value, color):
-        # Outer glow frame
-        outer = ctk.CTkFrame(parent, fg_color=color + "18" if len(color) == 7 else C["card"],
-                             corner_radius=14, border_width=1,
-                             border_color=color + "40" if len(color) == 7 else C["border"])
-        # Top accent bar (thicker)
+        color_to_dim = {
+            C["buy"]:  C["buy_dim"],
+            C["sell"]: C["sell_dim"],
+            C["blue"]: C["blue_dim"],
+            C["gold"]: C["gold_dim"],
+        }
+        color_to_border = {
+            C["buy"]:  C["buy_glow"],
+            C["sell"]: C["sell_glow"],
+            C["blue"]: C["blue_glow"],
+            C["gold"]: C["gold_glow"],
+        }
+        bg  = color_to_dim.get(color, C["card"])
+        brd = color_to_border.get(color, C["border"])
+        outer = ctk.CTkFrame(parent, fg_color=bg, corner_radius=14,
+                             border_width=1, border_color=brd)
         ctk.CTkFrame(outer, height=4, fg_color=color, corner_radius=0).pack(fill="x")
         inner = ctk.CTkFrame(outer, fg_color="transparent")
         inner.pack(fill="x", padx=18, pady=(12, 16))
