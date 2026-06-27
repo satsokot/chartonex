@@ -26,43 +26,43 @@ SETTINGS_FILE = "settings.json"
 
 # ── Color Palette ─────────────────────────────────────────────────────────────
 C = {
-    "bg":         "#050810",
-    "bg2":        "#090F1E",
-    "card":       "#0B1525",
-    "card2":      "#0E1A2E",
-    "input":      "#101E33",
-    "border":     "#162440",
-    "border2":    "#1E3358",
-    "blue":       "#4F8EF7",
-    "blue_hov":   "#3A7AE8",
-    "blue_dim":   "#0A1B3A",
-    "blue_glow":  "#1A3A70",
+    "bg":         "#07090F",
+    "bg2":        "#0C1018",
+    "card":       "#10151F",
+    "card2":      "#131A26",
+    "input":      "#161D2C",
+    "border":     "#1C2840",
+    "border2":    "#253550",
+    "blue":       "#5B8FF9",
+    "blue_hov":   "#4A7EE8",
+    "blue_dim":   "#0E1D3A",
+    "blue_glow":  "#1A3060",
     "teal":       "#00C9A7",
     "teal_hov":   "#00B396",
-    "teal_dim":   "#041E17",
-    "buy":        "#00D47E",
-    "buy_hov":    "#00BA6E",
-    "buy_dim":    "#051A0E",
-    "buy_glow":   "#0A3520",
-    "sell":       "#FF4060",
-    "sell_hov":   "#E82F50",
-    "sell_dim":   "#200610",
-    "sell_glow":  "#3D0B1A",
-    "gold":       "#FFB800",
-    "gold_dim":   "#1F1600",
-    "gold_glow":  "#3D2C00",
-    "text":       "#DCE8FF",
-    "text2":      "#5A78A8",
-    "text3":      "#253C62",
-    "red":        "#FF4060",
-    "red_hov":    "#E02050",
-    "green":      "#00D47E",
-    "sidebar":    "#060C1A",
-    "sidebar_hov":"#0C1628",
-    "active_bar": "#4F8EF7",
-    "accent":     "#4F8EF7",
+    "teal_dim":   "#061E18",
+    "buy":        "#00CC7A",
+    "buy_hov":    "#00B56B",
+    "buy_dim":    "#0C1F16",
+    "buy_glow":   "#153525",
+    "sell":       "#F5476A",
+    "sell_hov":   "#E03060",
+    "sell_dim":   "#1E0A12",
+    "sell_glow":  "#32101C",
+    "gold":       "#F5A623",
+    "gold_dim":   "#1E1608",
+    "gold_glow":  "#302210",
+    "text":       "#D8E6FF",
+    "text2":      "#4E6A95",
+    "text3":      "#273D60",
+    "red":        "#F5476A",
+    "red_hov":    "#E03060",
+    "green":      "#00CC7A",
+    "sidebar":    "#080C15",
+    "sidebar_hov":"#0E1525",
+    "active_bar": "#5B8FF9",
+    "accent":     "#5B8FF9",
     "purple":     "#7C3AED",
-    "purple_dim": "#150B2E",
+    "purple_dim": "#130B2A",
 }
 
 
@@ -486,9 +486,9 @@ class ChartoneXApp(ctk.CTk):
         self._conn_frame = ctk.CTkFrame(self.sidebar, fg_color="transparent")
         self._conn_frame.pack(side="bottom", fill="x", padx=14, pady=(0, 18))
 
-        status_row = ctk.CTkFrame(self._conn_frame, fg_color=C["buy_dim"],
+        status_row = ctk.CTkFrame(self._conn_frame, fg_color=C["card"],
                                   corner_radius=10, border_width=1,
-                                  border_color=C["buy_glow"])
+                                  border_color=C["border"])
         status_row.pack(fill="x")
 
         ctk.CTkFrame(status_row, width=8, height=8,
@@ -658,28 +658,21 @@ class ChartoneXApp(ctk.CTk):
         self._btn(bot, "💾  ذخیره CSV", self._export_csv, primary=False, h=36).pack(side="right")
 
     def _make_summary_card(self, parent, label, value, color):
-        color_to_dim = {
-            C["buy"]:  C["buy_dim"],
-            C["sell"]: C["sell_dim"],
-            C["blue"]: C["blue_dim"],
-            C["gold"]: C["gold_dim"],
-        }
         color_to_border = {
             C["buy"]:  C["buy_glow"],
             C["sell"]: C["sell_glow"],
             C["blue"]: C["blue_glow"],
             C["gold"]: C["gold_glow"],
         }
-        bg  = color_to_dim.get(color, C["card"])
         brd = color_to_border.get(color, C["border"])
-        outer = ctk.CTkFrame(parent, fg_color=bg, corner_radius=14,
+        outer = ctk.CTkFrame(parent, fg_color=C["card"], corner_radius=14,
                              border_width=1, border_color=brd)
-        ctk.CTkFrame(outer, height=4, fg_color=color, corner_radius=0).pack(fill="x")
+        ctk.CTkFrame(outer, height=3, fg_color=color, corner_radius=0).pack(fill="x")
         inner = ctk.CTkFrame(outer, fg_color="transparent")
-        inner.pack(fill="x", padx=18, pady=(12, 16))
-        self._label(inner, label, 9, color=C["text3"]).pack(anchor="e", fill="x")
+        inner.pack(fill="x", padx=18, pady=(14, 18))
+        self._label(inner, label, 9, color=C["text2"]).pack(anchor="e", fill="x")
         val_lbl = self._label(inner, value, 22, True, color=color)
-        val_lbl.pack(anchor="e", fill="x", pady=(6, 0))
+        val_lbl.pack(anchor="e", fill="x", pady=(8, 0))
         outer._val = val_lbl
         return outer
 
@@ -767,41 +760,37 @@ class ChartoneXApp(ctk.CTk):
 
         if is_single:
             single_val = r.get("buy") or r.get("sell")
-            avg_box = ctk.CTkFrame(prices_row, fg_color=C["gold_dim"],
+            avg_box = ctk.CTkFrame(prices_row, fg_color=C["card2"],
                                    corner_radius=10, border_width=1,
-                                   border_color=C["gold"])
+                                   border_color=C["border"])
             avg_box.pack(fill="both", expand=True)
-            self._label(avg_box, "میانگین قیمت", 10, color=C["gold"]).pack(
+            self._label(avg_box, "قیمت", 9, color=C["text2"]).pack(
                 anchor="e", padx=18, pady=(16, 0))
             self._label(avg_box, f"{single_val:,.0f}", 28, True,
                         color=C["gold"]).pack(anchor="e", padx=18, pady=(4, 16))
 
         else:
             # فروش (چپ)
-            sell_box = ctk.CTkFrame(prices_row, fg_color=C["sell_dim"],
+            sell_box = ctk.CTkFrame(prices_row, fg_color=C["card2"],
                                     corner_radius=10, border_width=1,
-                                    border_color=C["sell_glow"])
+                                    border_color=C["border"])
             sell_box.pack(side="left", fill="both", expand=True, padx=(0, 5))
-            ctk.CTkFrame(sell_box, height=2, fg_color=C["sell"],
-                         corner_radius=0).pack(fill="x")
-            self._label(sell_box, "▾  فروش", 10, color=C["sell"]).pack(
-                anchor="e", padx=14, pady=(12, 0))
+            self._label(sell_box, "فروش", 9, color=C["text2"]).pack(
+                anchor="e", padx=14, pady=(14, 0))
             sell_val = f"{r['sell']:,.0f}" if has_sell else "—"
             self._label(sell_box, sell_val, 24, True, color=C["sell"]).pack(
-                anchor="e", padx=14, pady=(4, 12))
+                anchor="e", padx=14, pady=(4, 14))
 
             # خرید (راست)
-            buy_box = ctk.CTkFrame(prices_row, fg_color=C["buy_dim"],
+            buy_box = ctk.CTkFrame(prices_row, fg_color=C["card2"],
                                    corner_radius=10, border_width=1,
-                                   border_color=C["buy_glow"])
+                                   border_color=C["border"])
             buy_box.pack(side="right", fill="both", expand=True, padx=(5, 0))
-            ctk.CTkFrame(buy_box, height=2, fg_color=C["buy"],
-                         corner_radius=0).pack(fill="x")
-            self._label(buy_box, "▴  خرید", 10, color=C["buy"]).pack(
-                anchor="e", padx=14, pady=(12, 0))
+            self._label(buy_box, "خرید", 9, color=C["text2"]).pack(
+                anchor="e", padx=14, pady=(14, 0))
             buy_val = f"{r['buy']:,.0f}" if has_buy else "—"
             self._label(buy_box, buy_val, 24, True, color=C["buy"]).pack(
-                anchor="e", padx=14, pady=(4, 12))
+                anchor="e", padx=14, pady=(4, 14))
 
     def _export_csv(self):
         if not self.results:
@@ -1366,13 +1355,13 @@ class ChartoneXApp(ctk.CTk):
         _stat_box(stats, "وضعیت",           "_cr_stat", C["text2"], 1, 0)
 
         # کارت قیمت پیشنهادی
-        self._cr_price_card = ctk.CTkFrame(result_col, fg_color=C["buy_dim"],
+        self._cr_price_card = ctk.CTkFrame(result_col, fg_color=C["card2"],
                                            corner_radius=14, border_width=1,
-                                           border_color=C["buy_glow"])
+                                           border_color=C["border2"])
         self._cr_price_card.pack(fill="x", padx=12, pady=(4, 8))
-        ctk.CTkFrame(self._cr_price_card, height=4, fg_color=C["buy"],
+        ctk.CTkFrame(self._cr_price_card, height=3, fg_color=C["buy"],
                      corner_radius=0).pack(fill="x")
-        self._label(self._cr_price_card, "قیمت پیشنهادی", 11, color=C["buy"]).pack(
+        self._label(self._cr_price_card, "قیمت پیشنهادی", 11, color=C["text2"]).pack(
             anchor="e", padx=18, pady=(16, 0))
         self._cr_price_lbl = self._label(self._cr_price_card, "—", 34, True, color=C["buy"])
         self._cr_price_lbl.pack(anchor="e", padx=18, pady=(4, 16))
@@ -1438,14 +1427,14 @@ class ChartoneXApp(ctk.CTk):
         if diff > threshold:
             status_txt   = f"✓ بیشتر از آستانه ({threshold:,.0f})"
             status_color = C["buy"]
-            self._cr_price_card.configure(border_color=C["buy"], fg_color=C["buy_dim"])
+            self._cr_price_card.configure(border_color=C["buy_glow"], fg_color=C["card2"])
             self._cr_price_lbl.configure(text=f"{proposed:,.0f}", text_color=C["buy"])
             self._send_btn.configure(state="normal")
             self._calc_price_value = proposed
         else:
             status_txt   = f"✗ کمتر از آستانه ({threshold:,.0f})"
             status_color = C["text3"]
-            self._cr_price_card.configure(border_color=C["border2"], fg_color=C["input"])
+            self._cr_price_card.configure(border_color=C["border2"], fg_color=C["card2"])
             self._cr_price_lbl.configure(text=f"{proposed:,.0f}", text_color=C["text2"])
             self._send_btn.configure(state="normal")  # همیشه قابل ارسال
             self._calc_price_value = proposed
