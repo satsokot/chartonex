@@ -26,30 +26,35 @@ SETTINGS_FILE = "settings.json"
 
 # ── Color Palette ─────────────────────────────────────────────────────────────
 C = {
-    "bg":         "#070B14",
-    "bg2":        "#0D1526",
-    "card":       "#111E35",
-    "input":      "#162133",
-    "border":     "#1E3050",
-    "border2":    "#2A4070",
+    "bg":         "#060A12",
+    "bg2":        "#0C1422",
+    "card":       "#0F1B30",
+    "input":      "#141F35",
+    "border":     "#1A2B48",
+    "border2":    "#243D65",
     "blue":       "#4F8EF7",
     "blue_hov":   "#3A7AE8",
+    "blue_dim":   "#0D1E3D",
     "teal":       "#00C9A7",
     "teal_hov":   "#00B396",
-    "buy":        "#00C07F",
-    "buy_dim":    "#0A2E1F",
+    "teal_dim":   "#052820",
+    "buy":        "#00C87A",
+    "buy_dim":    "#081F12",
     "sell":       "#FF4D6D",
-    "sell_dim":   "#2E0A13",
+    "sell_dim":   "#270813",
     "gold":       "#FFB800",
-    "text":       "#EEF2FF",
-    "text2":      "#7B90BB",
-    "text3":      "#3A5280",
+    "gold_dim":   "#271C00",
+    "text":       "#E8EFFF",
+    "text2":      "#6E87B0",
+    "text3":      "#2F4570",
     "red":        "#FF4D6D",
     "red_hov":    "#E03060",
-    "green":      "#00C07F",
-    "sidebar":    "#0A1020",
-    "sidebar_hov":"#0F1A30",
+    "green":      "#00C87A",
+    "sidebar":    "#070E1C",
+    "sidebar_hov":"#0D1828",
     "active_bar": "#4F8EF7",
+    "accent":     "#4F8EF7",
+    "purple":     "#8B5CF6",
 }
 
 
@@ -339,7 +344,7 @@ FONT_HEADER = ("Segoe UI", 15, "bold")
 FONT_BODY   = ("Segoe UI", 12)
 FONT_SMALL  = ("Segoe UI", 10)
 FONT_MONO   = ("Consolas", 11)
-FONT_PRICE  = ("Segoe UI", 26, "bold")
+FONT_PRICE  = ("Segoe UI", 28, "bold")
 FONT_NAV    = ("Segoe UI", 13)
 
 
@@ -350,9 +355,9 @@ def _f(size, bold=False):
 class ChartoneXApp(ctk.CTk):
     def __init__(self):
         super().__init__()
-        self.title("ChartoneX")
-        self.geometry("1160x720")
-        self.minsize(960, 620)
+        self.title("ChartoneX — نرخ تتر")
+        self.geometry("1200x740")
+        self.minsize(980, 640)
         self.configure(fg_color=C["bg"])
 
         self.channels = load_channels()
@@ -367,13 +372,21 @@ class ChartoneXApp(ctk.CTk):
 
     # ── Layout ────────────────────────────────────────────────────────────────
     def _build_ui(self):
+        # Top accent stripe (2px blue line at very top)
+        ctk.CTkFrame(self, height=2, fg_color=C["blue"], corner_radius=0).pack(
+            side="top", fill="x")
+
         # RTL: sidebar on right, content on left
         self.main_area = ctk.CTkFrame(self, fg_color=C["bg"], corner_radius=0)
         self.main_area.pack(side="left", fill="both", expand=True)
 
-        self.sidebar = ctk.CTkFrame(self, width=210, fg_color=C["sidebar"], corner_radius=0)
+        self.sidebar = ctk.CTkFrame(self, width=228, fg_color=C["sidebar"], corner_radius=0)
         self.sidebar.pack(side="right", fill="y")
         self.sidebar.pack_propagate(False)
+
+        # Sidebar left border (1px separator)
+        ctk.CTkFrame(self.sidebar, width=1, fg_color=C["border"], corner_radius=0).pack(
+            side="left", fill="y")
 
         self._build_sidebar()
 
@@ -393,19 +406,34 @@ class ChartoneXApp(ctk.CTk):
 
     # ── Sidebar ───────────────────────────────────────────────────────────────
     def _build_sidebar(self):
-        # Logo
-        logo = ctk.CTkFrame(self.sidebar, fg_color="transparent")
-        logo.pack(fill="x", padx=16, pady=(28, 4))
+        # ── Logo block ────────────────────────────────────────────────────────
+        logo_wrap = ctk.CTkFrame(self.sidebar, fg_color=C["bg2"], corner_radius=0)
+        logo_wrap.pack(fill="x")
 
-        ctk.CTkLabel(logo, text="◈ ChartoneX",
+        logo = ctk.CTkFrame(logo_wrap, fg_color="transparent")
+        logo.pack(fill="x", padx=18, pady=(22, 18))
+
+        # Icon + name row
+        name_row = ctk.CTkFrame(logo, fg_color="transparent")
+        name_row.pack(fill="x")
+        ctk.CTkLabel(name_row, text="ChartoneX",
+                     font=_f(20, True), text_color=C["text"],
+                     anchor="e").pack(side="right")
+        ctk.CTkLabel(name_row, text="◈",
                      font=_f(18, True), text_color=C["blue"],
-                     anchor="e").pack(fill="x")
-        ctk.CTkLabel(logo, text="قیمت تتر از تلگرام",
-                     font=_f(10), text_color=C["text2"],
-                     anchor="e").pack(fill="x")
+                     anchor="e").pack(side="right", padx=(0, 6))
 
-        ctk.CTkFrame(self.sidebar, height=1, fg_color=C["border"]).pack(
-            fill="x", padx=0, pady=(16, 12))
+        ctk.CTkLabel(logo, text="استخراج نرخ تتر از تلگرام",
+                     font=_f(10), text_color=C["text3"],
+                     anchor="e").pack(fill="x", pady=(3, 0))
+
+        # Blue accent line under logo
+        ctk.CTkFrame(logo_wrap, height=1, fg_color=C["border"], corner_radius=0).pack(
+            fill="x", padx=0, pady=(0, 0))
+
+        # ── Navigation ────────────────────────────────────────────────────────
+        nav_container = ctk.CTkFrame(self.sidebar, fg_color="transparent")
+        nav_container.pack(fill="x", pady=(14, 0))
 
         nav_items = [
             ("📊", "خروجی",        "output"),
@@ -419,20 +447,20 @@ class ChartoneXApp(ctk.CTk):
         self._nav_indicators = {}
 
         for icon, label, key in nav_items:
-            wrapper = ctk.CTkFrame(self.sidebar, fg_color="transparent", height=44)
+            wrapper = ctk.CTkFrame(nav_container, fg_color="transparent", height=48)
             wrapper.pack(fill="x", pady=1)
             wrapper.pack_propagate(False)
 
-            # Active left-border indicator (on right side for RTL = right border)
-            indicator = ctk.CTkFrame(wrapper, width=3, fg_color="transparent", corner_radius=0)
-            indicator.pack(side="right", fill="y")
+            # Right-side active indicator bar
+            indicator = ctk.CTkFrame(wrapper, width=3, fg_color="transparent", corner_radius=2)
+            indicator.pack(side="right", fill="y", padx=(0, 0))
             self._nav_indicators[key] = indicator
 
             btn = ctk.CTkButton(
                 wrapper,
-                text=f"{label}  {icon}",
+                text=f"{label}   {icon}",
                 anchor="e",
-                height=44,
+                height=48,
                 corner_radius=0,
                 fg_color="transparent",
                 hover_color=C["sidebar_hov"],
@@ -443,12 +471,31 @@ class ChartoneXApp(ctk.CTk):
             btn.pack(fill="both", expand=True)
             self._nav_btns[key] = btn
 
-        # Status dot at bottom
+        # ── Section label ─────────────────────────────────────────────────────
+        ctk.CTkFrame(self.sidebar, height=1, fg_color=C["border"]).pack(
+            fill="x", padx=0, pady=(16, 0))
+
+        # ── Bottom status ─────────────────────────────────────────────────────
         self._conn_frame = ctk.CTkFrame(self.sidebar, fg_color="transparent")
-        self._conn_frame.pack(side="bottom", fill="x", padx=16, pady=20)
-        ctk.CTkLabel(self._conn_frame, text="v2.0",
+        self._conn_frame.pack(side="bottom", fill="x", padx=16, pady=(0, 20))
+
+        # Status row
+        status_row = ctk.CTkFrame(self._conn_frame, fg_color=C["bg2"],
+                                  corner_radius=8, border_width=1,
+                                  border_color=C["border"])
+        status_row.pack(fill="x")
+
+        dot_frame = ctk.CTkFrame(status_row, width=8, height=8,
+                                 fg_color=C["buy"], corner_radius=4)
+        dot_frame.pack(side="left", padx=(10, 6), pady=10)
+
+        ctk.CTkLabel(status_row, text="آماده به کار",
+                     font=_f(10), text_color=C["text2"],
+                     anchor="e").pack(side="right", padx=10, pady=10)
+
+        ctk.CTkLabel(self._conn_frame, text="v2.1",
                      font=_f(9), text_color=C["text3"],
-                     anchor="e").pack(fill="x")
+                     anchor="center").pack(pady=(6, 0))
 
     def _show_page(self, key: str):
         for k, f in self.pages.items():
@@ -457,10 +504,12 @@ class ChartoneXApp(ctk.CTk):
 
         for k, btn in self._nav_btns.items():
             if k == key:
-                btn.configure(fg_color=C["sidebar_hov"], text_color=C["blue"])
+                btn.configure(fg_color=C["blue_dim"], text_color=C["blue"],
+                              font=_f(13, True))
                 self._nav_indicators[k].configure(fg_color=C["active_bar"])
             else:
-                btn.configure(fg_color="transparent", text_color=C["text2"])
+                btn.configure(fg_color="transparent", text_color=C["text2"],
+                              font=_f(13, False))
                 self._nav_indicators[k].configure(fg_color="transparent")
 
     # ── Paste helpers ─────────────────────────────────────────────────────────
@@ -502,7 +551,7 @@ class ChartoneXApp(ctk.CTk):
     # ── Shared widget factory ─────────────────────────────────────────────────
     def _card(self, parent, **kw):
         return ctk.CTkFrame(parent, fg_color=C["card"],
-                            corner_radius=14, border_width=1,
+                            corner_radius=12, border_width=1,
                             border_color=C["border"], **kw)
 
     def _label(self, parent, text, size=12, bold=False,
@@ -514,7 +563,7 @@ class ChartoneXApp(ctk.CTk):
 
     def _entry(self, parent, placeholder="", secret=False, value=""):
         e = ctk.CTkEntry(parent, placeholder_text=placeholder,
-                         height=38, fg_color=C["input"],
+                         height=40, fg_color=C["input"],
                          border_color=C["border2"],
                          border_width=1,
                          text_color=C["text"],
@@ -526,7 +575,7 @@ class ChartoneXApp(ctk.CTk):
         return e
 
     def _btn(self, parent, text, cmd, primary=True, w=None, h=38):
-        kw = dict(height=h, corner_radius=10, font=_f(12, True),
+        kw = dict(height=h, corner_radius=8, font=_f(12, True),
                   command=cmd, text=text)
         if w:
             kw["width"] = w
@@ -534,22 +583,34 @@ class ChartoneXApp(ctk.CTk):
             kw.update(fg_color=C["blue"], hover_color=C["blue_hov"],
                       text_color="#ffffff")
         else:
-            kw.update(fg_color=C["card"], hover_color=C["input"],
+            kw.update(fg_color=C["input"], hover_color=C["card"],
                       border_width=1, border_color=C["border2"],
                       text_color=C["text2"])
         return ctk.CTkButton(parent, **kw)
 
     def _page_header(self, page, title, subtitle=""):
-        bar = ctk.CTkFrame(page, fg_color=C["bg2"], corner_radius=0, height=62)
+        # Outer bar
+        bar = ctk.CTkFrame(page, fg_color=C["bg2"], corner_radius=0, height=68)
         bar.pack(fill="x")
         bar.pack_propagate(False)
+
+        # Bottom separator line
+        ctk.CTkFrame(bar, height=1, fg_color=C["border"], corner_radius=0).pack(
+            side="bottom", fill="x")
+
         inner = ctk.CTkFrame(bar, fg_color="transparent")
         inner.pack(fill="both", expand=True, padx=28)
-        self._label(inner, title, 17, True, anchor="e").pack(
-            side="right", pady=(14, 2))
+
+        # Title + subtitle stacked on right
+        txt_block = ctk.CTkFrame(inner, fg_color="transparent")
+        txt_block.pack(side="right", fill="y")
+
+        self._label(txt_block, title, 18, True, anchor="e").pack(
+            anchor="e", pady=(16, 1))
         if subtitle:
-            self._label(inner, subtitle, 10, color=C["text2"],
-                        anchor="e").pack(side="right", pady=(0, 14))
+            self._label(txt_block, subtitle, 10, color=C["text3"],
+                        anchor="e").pack(anchor="e")
+
         return bar
 
     # ══════════════════════════════════════════════════════════════════════════
@@ -586,12 +647,15 @@ class ChartoneXApp(ctk.CTk):
 
     def _make_summary_card(self, parent, label, value, color):
         card = self._card(parent)
+        # Top accent bar
         ctk.CTkFrame(card, height=3, fg_color=color, corner_radius=0).pack(
-            fill="x", padx=0, pady=(0, 0))
-        self._label(card, label, 10, color=C["text2"]).pack(
-            fill="x", padx=14, pady=(10, 2))
-        val_lbl = self._label(card, value, 18, True, color=color)
-        val_lbl.pack(fill="x", padx=14, pady=(0, 12))
+            fill="x")
+        inner = ctk.CTkFrame(card, fg_color="transparent")
+        inner.pack(fill="x", padx=16, pady=(10, 14))
+        self._label(inner, label, 9, color=C["text3"]).pack(
+            anchor="e", fill="x")
+        val_lbl = self._label(inner, value, 20, True, color=color)
+        val_lbl.pack(anchor="e", fill="x", pady=(4, 0))
         card._val = val_lbl
         return card
 
@@ -641,59 +705,72 @@ class ChartoneXApp(ctk.CTk):
         has_sell = bool(r.get("sell"))
         is_single = has_buy != has_sell  # تک‌نرخی: فقط یکی دارد
 
-        card = self._card(grid)
+        # Border color based on type
+        accent = C["gold"] if is_single else C["border"]
+        card = ctk.CTkFrame(grid, fg_color=C["card"], corner_radius=12,
+                            border_width=1, border_color=accent)
         card.grid(row=row, column=col, padx=6, pady=6, sticky="nsew")
 
+        # Top accent line
+        top_color = C["gold"] if is_single else C["blue"]
+        ctk.CTkFrame(card, height=3, fg_color=top_color,
+                     corner_radius=0).pack(fill="x")
+
         # Channel name header
-        hdr = ctk.CTkFrame(card, fg_color=C["input"], corner_radius=10)
-        hdr.pack(fill="x", padx=10, pady=(10, 8))
+        hdr = ctk.CTkFrame(card, fg_color=C["input"],
+                           corner_radius=8, border_width=0)
+        hdr.pack(fill="x", padx=10, pady=(8, 6))
 
-        self._label(hdr, r.get("channel", "")[:30], 12, True).pack(
-            side="right", padx=12, pady=8)
+        self._label(hdr, r.get("channel", "")[:32], 12, True).pack(
+            side="right", padx=12, pady=9)
 
-        # نشان «تک‌نرخی» برای کانال‌های تک‌نرخی
         if is_single:
-            self._label(hdr, "تک‌نرخی", 9, color=C["gold"]).pack(
-                side="left", padx=4, pady=8)
+            badge = ctk.CTkFrame(hdr, fg_color=C["gold_dim"],
+                                 corner_radius=5, border_width=1,
+                                 border_color=C["gold"])
+            badge.pack(side="left", padx=(6, 4), pady=6)
+            self._label(badge, "تک‌نرخی", 9, color=C["gold"]).pack(
+                padx=6, pady=3)
+
         self._label(hdr, r.get("date", ""), 9, color=C["text3"]).pack(
-            side="left", padx=8, pady=8)
+            side="left", padx=8, pady=9)
 
         prices_row = ctk.CTkFrame(card, fg_color="transparent")
         prices_row.pack(fill="x", padx=10, pady=(0, 10))
 
         if is_single:
-            # ── یک کادر میانگین قیمت ─────────────────────────────────────────
             single_val = r.get("buy") or r.get("sell")
-            avg_box = ctk.CTkFrame(prices_row, fg_color=C["input"],
+            avg_box = ctk.CTkFrame(prices_row, fg_color=C["gold_dim"],
                                    corner_radius=10, border_width=1,
                                    border_color=C["gold"])
             avg_box.pack(fill="both", expand=True)
-            self._label(avg_box, "میانگین قیمت", 11, color=C["gold"]).pack(
-                anchor="e", padx=16, pady=(12, 0))
-            self._label(avg_box, f"{single_val:,.0f}", 24, True,
-                        color=C["gold"]).pack(anchor="e", padx=16, pady=(0, 12))
+            self._label(avg_box, "میانگین قیمت", 10, color=C["gold"]).pack(
+                anchor="e", padx=16, pady=(14, 0))
+            self._label(avg_box, f"{single_val:,.0f}", 26, True,
+                        color=C["gold"]).pack(anchor="e", padx=16, pady=(2, 14))
 
         else:
-            # ── دو‌نرخی: خرید + فروش (رفتار قبلی) ──────────────────────────
+            # فروش
             sell_box = ctk.CTkFrame(prices_row, fg_color=C["sell_dim"],
                                     corner_radius=10, border_width=1,
                                     border_color=C["sell"])
             sell_box.pack(side="left", fill="both", expand=True, padx=(0, 4))
-            self._label(sell_box, "فروش", 10, color=C["sell"]).pack(
-                anchor="e", padx=12, pady=(10, 0))
+            self._label(sell_box, "فروش  ▾", 10, color=C["sell"]).pack(
+                anchor="e", padx=14, pady=(12, 0))
             sell_val = f"{r['sell']:,.0f}" if has_sell else "—"
-            self._label(sell_box, sell_val, 20, True, color=C["sell"]).pack(
-                anchor="e", padx=12, pady=(0, 10))
+            self._label(sell_box, sell_val, 22, True, color=C["sell"]).pack(
+                anchor="e", padx=14, pady=(2, 12))
 
+            # خرید
             buy_box = ctk.CTkFrame(prices_row, fg_color=C["buy_dim"],
                                    corner_radius=10, border_width=1,
                                    border_color=C["buy"])
             buy_box.pack(side="right", fill="both", expand=True, padx=(4, 0))
-            self._label(buy_box, "خرید", 10, color=C["buy"]).pack(
-                anchor="e", padx=12, pady=(10, 0))
+            self._label(buy_box, "خرید  ▴", 10, color=C["buy"]).pack(
+                anchor="e", padx=14, pady=(12, 0))
             buy_val = f"{r['buy']:,.0f}" if has_buy else "—"
-            self._label(buy_box, buy_val, 20, True, color=C["buy"]).pack(
-                anchor="e", padx=12, pady=(0, 10))
+            self._label(buy_box, buy_val, 22, True, color=C["buy"]).pack(
+                anchor="e", padx=14, pady=(2, 12))
 
     def _export_csv(self):
         if not self.results:
@@ -834,41 +911,58 @@ class ChartoneXApp(ctk.CTk):
         prices = extract_prices(sample) if sample else {}
         has_prices = bool(prices)
 
-        row = ctk.CTkFrame(self._ch_scroll, fg_color=C["input"],
-                           corner_radius=10)
-        row.pack(fill="x", pady=4)
-
-        top = ctk.CTkFrame(row, fg_color="transparent")
-        top.pack(fill="x", padx=12, pady=(10, 4))
-
-        # Delete button (left, RTL = appears left)
-        ctk.CTkButton(top, text="✕", width=26, height=26,
-                      corner_radius=6, fg_color="transparent",
-                      hover_color=C["red"], text_color=C["text3"],
-                      font=_f(11),
-                      command=lambda i=idx: self._remove_channel(i)).pack(side="left")
-
-        # Badge
         if sample:
             badge_txt   = "✓ شناسایی شد" if has_prices else "✗ ناشناخته"
             badge_color = C["buy"] if has_prices else C["sell"]
+            left_border = C["buy"] if has_prices else C["sell"]
         else:
             badge_txt, badge_color = "⚠ بدون نمونه", C["gold"]
+            left_border = C["gold"]
 
-        ctk.CTkLabel(top, text=badge_txt,
-                     font=_f(9), text_color=badge_color).pack(side="left", padx=8)
+        # Row card
+        row = ctk.CTkFrame(self._ch_scroll, fg_color=C["card"],
+                           corner_radius=10, border_width=1,
+                           border_color=C["border"])
+        row.pack(fill="x", pady=4)
 
-        # Channel info (right side)
+        # Accent left stripe
+        ctk.CTkFrame(row, width=3, fg_color=left_border,
+                     corner_radius=0).pack(side="left", fill="y")
+
+        content = ctk.CTkFrame(row, fg_color="transparent")
+        content.pack(fill="both", expand=True)
+
+        top = ctk.CTkFrame(content, fg_color="transparent")
+        top.pack(fill="x", padx=10, pady=(10, 4))
+
+        # Delete button
+        ctk.CTkButton(top, text="✕", width=28, height=28,
+                      corner_radius=6, fg_color=C["input"],
+                      hover_color=C["sell_dim"], text_color=C["text3"],
+                      border_width=1, border_color=C["border2"],
+                      font=_f(11),
+                      command=lambda i=idx: self._remove_channel(i)).pack(side="left")
+
+        # Badge pill
+        badge_bg = C["buy_dim"] if has_prices else (C["sell_dim"] if sample else C["gold_dim"])
+        badge_frame = ctk.CTkFrame(top, fg_color=badge_bg,
+                                   corner_radius=5, border_width=1,
+                                   border_color=badge_color)
+        badge_frame.pack(side="left", padx=(8, 0))
+        ctk.CTkLabel(badge_frame, text=badge_txt,
+                     font=_f(9), text_color=badge_color).pack(padx=7, pady=3)
+
+        # Channel name (right side)
         self._label(top, ch.get("name", ch["url"]), 12, True).pack(side="right")
 
-        self._label(row, ch["url"], 10, color=C["text3"]).pack(
-            anchor="e", padx=12, pady=(0, 6))
+        self._label(content, ch["url"], 10, color=C["text3"]).pack(
+            anchor="e", padx=10, pady=(0, 6))
 
         if sample:
-            prev = ctk.CTkFrame(row, fg_color=C["card"], corner_radius=6)
-            prev.pack(fill="x", padx=12, pady=(0, 10))
+            prev = ctk.CTkFrame(content, fg_color=C["input"], corner_radius=6)
+            prev.pack(fill="x", padx=10, pady=(0, 10))
             self._label(prev, sample[:100].replace("\n", " ↵ "),
-                        9, color=C["text3"]).pack(anchor="e", padx=8, pady=4)
+                        9, color=C["text3"]).pack(anchor="e", padx=8, pady=5)
 
     def _remove_channel(self, idx):
         ch = self.channels[idx]
@@ -920,8 +1014,8 @@ class ChartoneXApp(ctk.CTk):
         prog_card.pack(fill="x", pady=(0, 12))
 
         self._prog_bar = ctk.CTkProgressBar(
-            prog_card, height=8, progress_color=C["blue"],
-            fg_color=C["input"], corner_radius=4)
+            prog_card, height=10, progress_color=C["blue"],
+            fg_color=C["border"], corner_radius=5)
         self._prog_bar.pack(fill="x", padx=16, pady=(14, 8))
         self._prog_bar.set(0)
 
@@ -937,16 +1031,17 @@ class ChartoneXApp(ctk.CTk):
         btn_card.pack(fill="x", pady=(0, 12))
 
         self._stop_btn = ctk.CTkButton(
-            btn_card, text="⏹  توقف", height=46, corner_radius=10,
-            fg_color=C["red"], hover_color=C["red_hov"],
-            text_color="#fff", font=_f(13, True),
+            btn_card, text="⏹  توقف", height=48, corner_radius=8,
+            fg_color=C["sell_dim"], hover_color=C["red_hov"],
+            border_width=1, border_color=C["red"],
+            text_color=C["sell"], font=_f(13, True),
             state="disabled", command=self._stop_scraping)
         self._stop_btn.pack(side="right", padx=(6, 0))
 
         self._start_btn = ctk.CTkButton(
-            btn_card, text="▶  شروع استخراج", height=46, corner_radius=10,
+            btn_card, text="▶  شروع استخراج", height=48, corner_radius=8,
             fg_color=C["teal"], hover_color=C["teal_hov"],
-            text_color="#fff", font=_f(13, True),
+            text_color="#fff", font=_f(14, True),
             command=self._start_scraping)
         self._start_btn.pack(side="right")
 
@@ -1244,16 +1339,18 @@ class ChartoneXApp(ctk.CTk):
                                            corner_radius=12, border_width=2,
                                            border_color=C["buy"])
         self._cr_price_card.pack(fill="x", padx=12, pady=(4, 8))
+        ctk.CTkFrame(self._cr_price_card, height=3, fg_color=C["buy"],
+                     corner_radius=0).pack(fill="x")
         self._label(self._cr_price_card, "قیمت پیشنهادی", 11, color=C["buy"]).pack(
-            anchor="e", padx=16, pady=(12, 0))
-        self._cr_price_lbl = self._label(self._cr_price_card, "—", 28, True, color=C["buy"])
-        self._cr_price_lbl.pack(anchor="e", padx=16, pady=(0, 12))
+            anchor="e", padx=16, pady=(14, 0))
+        self._cr_price_lbl = self._label(self._cr_price_card, "—", 32, True, color=C["buy"])
+        self._cr_price_lbl.pack(anchor="e", padx=16, pady=(2, 14))
 
         self._send_btn = ctk.CTkButton(
             result_col, text="📤  ارسال به کانال مقصد",
-            height=44, corner_radius=10,
+            height=46, corner_radius=8,
             fg_color=C["teal"], hover_color=C["teal_hov"],
-            text_color="#fff", font=_f(13, True),
+            text_color="#fff", font=_f(14, True),
             state="disabled", command=self._send_calc_result)
         self._send_btn.pack(fill="x", padx=12, pady=(0, 16))
 
