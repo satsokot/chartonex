@@ -175,15 +175,13 @@ async def fetch_channel_prices(api_id, api_hash, phone, channels, limit, progres
                             "text_preview": msg.text[:120].replace("\n", " "),
                         })
             if found_in_channel == 0:
-                # ارسال نمونه پیام برای دیباگ
-                sample = []
-                async for msg in client.iter_messages(entity, limit=3):
-                    if msg.text:
-                        sample.append(msg.text[:200].replace("\n", " | "))
-                if sample:
-                    progress_cb(idx, total, f"⚠ هیچ قیمتی در {url} یافت نشد. نمونه پیام‌ها:")
-                    for s in sample:
-                        progress_cb(idx, total, f"    📄 {s}")
+                progress_cb(idx, total, f"⚠ هیچ قیمتی در {url} یافت نشد — نمونه پیام‌های خام:")
+                count = 0
+                async for msg in client.iter_messages(entity, limit=5):
+                    if msg.text and count < 3:
+                        preview = msg.text[:300].replace("\n", " | ")
+                        progress_cb(idx, total, f"  ▶ {preview}")
+                        count += 1
         except FloodWaitError as e:
             error_cb(f"Flood wait از تلگرام: {e.seconds} ثانیه صبر کنید")
             break
@@ -587,29 +585,40 @@ class ChartoneXApp(ctk.CTk):
                                        font=ctk.CTkFont("Courier New", 11),
                                        corner_radius=8, border_width=0)
         self.log_text.pack(fill="both", expand=True, padx=12, pady=(0, 12))
-        # Allow selecting and copying text with Ctrl+C / Ctrl+A
-        self.log_text.bind("<Control-c>", lambda e: None)   # let default copy work
-        self.log_text.bind("<Control-a>", lambda e: self._select_all_log())
-        self.log_text.bind("<Button-3>", self._log_context_menu)
+        inner_log = self.log_text._textbox
+        inner_log.bind("<Control-c>", lambda e: self._copy_selected_log(inner_log))
+        inner_log.bind("<Control-C>", lambda e: self._copy_selected_log(inner_log))
+        inner_log.bind("<Control-a>", lambda e: self._select_all_log())
+        inner_log.bind("<Control-A>", lambda e: self._select_all_log())
+        inner_log.bind("<Button-3>", self._log_context_menu)
         self.log_text.configure(state="disabled")
 
+    def _copy_selected_log(self, inner_widget):
+        try:
+            selected = inner_widget.get(tk.SEL_FIRST, tk.SEL_LAST)
+            self.clipboard_clear()
+            self.clipboard_append(selected)
+        except tk.TclError:
+            pass
+        return "break"
+
     def _copy_log(self):
-        content = self.log_text.get("1.0", "end").strip()
+        content = self.log_text._textbox.get("1.0", "end").strip()
         if content:
             self.clipboard_clear()
             self.clipboard_append(content)
 
     def _select_all_log(self):
-        self.log_text.configure(state="normal")
-        self.log_text.tag_add("sel", "1.0", "end")
-        self.log_text.configure(state="disabled")
+        inner = self.log_text._textbox
+        inner.tag_add(tk.SEL, "1.0", "end")
+        return "break"
 
     def _log_context_menu(self, event):
         menu = tk.Menu(self, tearoff=0,
                        bg=COLORS["bg_card"], fg=COLORS["text_primary"],
                        activebackground=COLORS["accent"], activeforeground="#000000",
                        font=("Segoe UI", 11))
-        menu.add_command(label="کپی انتخاب‌شده", command=lambda: self.log_text.event_generate("<<Copy>>"))
+        menu.add_command(label="کپی انتخاب‌شده", command=lambda: self._copy_selected_log(self.log_text._textbox))
         menu.add_command(label="انتخاب همه", command=self._select_all_log)
         menu.add_command(label="کپی همه", command=self._copy_log)
         menu.tk_popup(event.x_root, event.y_root)
