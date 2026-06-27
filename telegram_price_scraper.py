@@ -9,6 +9,8 @@ import os
 import re
 import threading
 import asyncio
+import urllib.request
+import urllib.parse
 from datetime import datetime
 from pathlib import Path
 from tkinter import messagebox
@@ -68,7 +70,14 @@ def save_channels(channels):
 
 
 def load_settings():
-    defaults = {"api_id": "", "api_hash": "", "phone": "", "interval": 60}
+    defaults = {
+        "api_id": "", "api_hash": "", "phone": "", "interval": 60,
+        "bot_token": "", "dest_channel": "",
+        "msg_template": "نرخ تتر: {قیمت} تومان\nتاریخ: {تاریخ}\nساعت: {ساعت}",
+        "inline_buttons": "",
+        "calc_source": "", "calc_dest": "",
+        "calc_threshold": "500", "calc_deduction": "200",
+    }
     if not os.path.exists(SETTINGS_FILE):
         return defaults
     try:
@@ -169,6 +178,73 @@ def extract_prices(text: str):
                 break
 
     return prices
+
+
+# ── Shamsi (Jalali) Date Conversion ──────────────────────────────────────────
+def gregorian_to_jalali(gy, gm, gd):
+    g_ym = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334]
+    jy = 0 if gy <= 1600 else 979
+    gy -= 600 if gy <= 1600 else 1600
+    gm -= 1
+    g_day = 365*gy + (gy+3)//4 - (gy+99)//100 + (gy+399)//400
+    for i in range(gm):
+        g_day += g_ym[i]
+    if gm > 1 and ((gy % 4 == 0 and gy % 100 != 0) or gy % 400 == 0):
+        g_day += 1
+    g_day += gd - 1
+    j_day = g_day - 79
+    j_np  = j_day // 12053
+    j_day %= 12053
+    jy   += 979 * j_np
+    jy   += 33 * (j_day // 1461)
+    j_day %= 1461
+    if j_day >= 366:
+        jy   += (j_day - 1) // 365
+        j_day = (j_day - 1) % 365
+    jm_days = [31, 31, 31, 31, 31, 31, 30, 30, 30, 30, 30, 29]
+    jm, jd = 12, 29
+    for i, v in enumerate(jm_days):
+        if j_day < v:
+            jm = i + 1
+            jd = j_day + 1
+            break
+        j_day -= v
+    return jy, jm, jd
+
+
+def shamsi_now():
+    n  = datetime.now()
+    jy, jm, jd = gregorian_to_jalali(n.year, n.month, n.day)
+    return f"{jy}/{jm:02d}/{jd:02d}", n.strftime("%H:%M")
+
+
+# ── Telegram Bot API ──────────────────────────────────────────────────────────
+def bot_send_message(token: str, chat_id: str, text: str, buttons_raw: str = "") -> dict:
+    keyboard = []
+    for line in buttons_raw.strip().splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        row = []
+        for part in line.split("||"):
+            part = part.strip()
+            if "|" in part:
+                btn_text, btn_url = part.split("|", 1)
+                row.append({"text": btn_text.strip(), "url": btn_url.strip()})
+            elif part:
+                row.append({"text": part, "callback_data": part})
+        if row:
+            keyboard.append(row)
+
+    payload: dict = {"chat_id": chat_id, "text": text, "parse_mode": "HTML"}
+    if keyboard:
+        payload["reply_markup"] = json.dumps({"inline_keyboard": keyboard})
+
+    data = urllib.parse.urlencode(payload).encode("utf-8")
+    url  = f"https://api.telegram.org/bot{token}/sendMessage"
+    req  = urllib.request.Request(url, data=data)
+    with urllib.request.urlopen(req, timeout=15) as resp:
+        return json.loads(resp.read().decode())
 
 
 # ── Telegram Client ───────────────────────────────────────────────────────────
@@ -308,6 +384,8 @@ class ChartoneXApp(ctk.CTk):
         self._build_output_page()
         self._build_channels_page()
         self._build_scrape_page()
+        self._build_calc_page()
+        self._build_format_page()
         self._build_settings_page()
 
         self._show_page("output")
@@ -330,10 +408,12 @@ class ChartoneXApp(ctk.CTk):
             fill="x", padx=0, pady=(16, 12))
 
         nav_items = [
-            ("📊", "خروجی",   "output"),
-            ("📡", "کانال‌ها", "channels"),
-            ("🔍", "استخراج", "scrape"),
-            ("⚙️", "تنظیمات", "settings"),
+            ("📊", "خروجی",        "output"),
+            ("📡", "کانال‌ها",     "channels"),
+            ("🔍", "استخراج",      "scrape"),
+            ("🧮", "محاسبه قیمت", "calc"),
+            ("📤", "فرمت خروجی",  "format"),
+            ("⚙️", "تنظیمات",     "settings"),
         ]
         self._nav_btns = {}
         self._nav_indicators = {}
@@ -1064,6 +1144,352 @@ class ChartoneXApp(ctk.CTk):
         self.after(0, show)
         ev.wait(timeout=120)
         return holder[0] or ""
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # CALC PAGE — محاسبه قیمت کانال مقصد
+    # ══════════════════════════════════════════════════════════════════════════
+    def _build_calc_page(self):
+        page = ctk.CTkFrame(self._content, fg_color=C["bg"], corner_radius=0)
+        self.pages["calc"] = page
+        self._page_header(page, "محاسبه قیمت کانال مقصد",
+                          "مقایسه دو کانال و محاسبه قیمت پیشنهادی")
+
+        body = ctk.CTkFrame(page, fg_color="transparent")
+        body.pack(fill="both", expand=True, padx=24, pady=16)
+        body.columnconfigure(0, weight=1)
+        body.columnconfigure(1, weight=1)
+        body.rowconfigure(0, weight=1)
+
+        # ─ فرم (ستون راست) ───────────────────────────────────────────────────
+        form = self._card(body)
+        form.grid(row=0, column=1, padx=(6, 0), sticky="nsew")
+
+        self._label(form, "پارامترهای محاسبه", 13, True).pack(
+            anchor="e", padx=16, pady=(16, 12))
+
+        ch_names = [ch.get("name", ch["url"]) for ch in self.channels] or ["— کانالی ندارید —"]
+
+        def _dropdown(lbl_text, attr, default_key):
+            row = ctk.CTkFrame(form, fg_color="transparent")
+            row.pack(fill="x", padx=16, pady=5)
+            self._label(row, lbl_text, 11, color=C["text2"]).pack(anchor="e", fill="x", pady=(0, 3))
+            saved = self.settings.get(default_key, "")
+            val = saved if saved in ch_names else ch_names[0]
+            var = tk.StringVar(value=val)
+            opt = ctk.CTkOptionMenu(row, variable=var, values=ch_names,
+                                    fg_color=C["input"], button_color=C["blue"],
+                                    button_hover_color=C["blue_hov"],
+                                    text_color=C["text"], font=_f(12),
+                                    dropdown_fg_color=C["card"],
+                                    dropdown_text_color=C["text"])
+            opt.pack(fill="x")
+            setattr(self, attr, var)
+            return var
+
+        self._calc_src_var = _dropdown("کانال مبدا", "_calc_src_var", "calc_source")
+        self._calc_dst_var = _dropdown("کانال مقصد", "_calc_dst_var", "calc_dest")
+
+        def _num_field(lbl_text, attr, default_key):
+            row = ctk.CTkFrame(form, fg_color="transparent")
+            row.pack(fill="x", padx=16, pady=5)
+            self._label(row, lbl_text, 11, color=C["text2"]).pack(anchor="e", fill="x", pady=(0, 3))
+            e = self._entry(row, "عدد به تومان",
+                            value=str(self.settings.get(default_key, "")))
+            e.pack(fill="x")
+            setattr(self, attr, e)
+
+        _num_field("آستانه اختلاف (تومان)", "_calc_threshold_e", "calc_threshold")
+        _num_field("کسر از میانگین (تومان)", "_calc_deduction_e", "calc_deduction")
+
+        ctk.CTkFrame(form, height=1, fg_color=C["border"]).pack(fill="x", padx=16, pady=10)
+
+        btn_row = ctk.CTkFrame(form, fg_color="transparent")
+        btn_row.pack(fill="x", padx=16, pady=(0, 16))
+        self._btn(btn_row, "🧮 محاسبه", self._do_calc, primary=True, h=40).pack(
+            side="right", padx=(6, 0))
+        self._btn(btn_row, "💾 ذخیره تنظیمات", self._save_calc_settings,
+                  primary=False, h=40).pack(side="right")
+
+        # ─ نتیجه (ستون چپ) ───────────────────────────────────────────────────
+        result_col = self._card(body)
+        result_col.grid(row=0, column=0, padx=(0, 6), sticky="nsew")
+
+        self._label(result_col, "نتیجه محاسبه", 13, True).pack(
+            anchor="e", padx=16, pady=(16, 12))
+
+        ctk.CTkFrame(result_col, height=1, fg_color=C["border"]).pack(fill="x", padx=12)
+
+        # کارت‌های نتیجه
+        stats = ctk.CTkFrame(result_col, fg_color="transparent")
+        stats.pack(fill="x", padx=12, pady=12)
+        stats.columnconfigure(0, weight=1)
+        stats.columnconfigure(1, weight=1)
+
+        def _stat_box(parent, label, attr, color, r, c):
+            box = ctk.CTkFrame(parent, fg_color=C["input"], corner_radius=10,
+                               border_width=1, border_color=C["border2"])
+            box.grid(row=r, column=c, padx=4, pady=4, sticky="ew")
+            self._label(box, label, 9, color=C["text3"]).pack(anchor="e", padx=10, pady=(8, 0))
+            lbl = self._label(box, "—", 16, True, color=color)
+            lbl.pack(anchor="e", padx=10, pady=(0, 8))
+            setattr(self, attr, lbl)
+
+        _stat_box(stats, "میانگین مبدا",    "_cr_src",  C["blue"],  0, 1)
+        _stat_box(stats, "میانگین مقصد",    "_cr_dst",  C["text2"], 0, 0)
+        _stat_box(stats, "اختلاف",          "_cr_diff", C["gold"],  1, 1)
+        _stat_box(stats, "وضعیت",           "_cr_stat", C["text2"], 1, 0)
+
+        # کارت قیمت پیشنهادی
+        self._cr_price_card = ctk.CTkFrame(result_col, fg_color=C["buy_dim"],
+                                           corner_radius=12, border_width=2,
+                                           border_color=C["buy"])
+        self._cr_price_card.pack(fill="x", padx=12, pady=(4, 8))
+        self._label(self._cr_price_card, "قیمت پیشنهادی", 11, color=C["buy"]).pack(
+            anchor="e", padx=16, pady=(12, 0))
+        self._cr_price_lbl = self._label(self._cr_price_card, "—", 28, True, color=C["buy"])
+        self._cr_price_lbl.pack(anchor="e", padx=16, pady=(0, 12))
+
+        self._send_btn = ctk.CTkButton(
+            result_col, text="📤  ارسال به کانال مقصد",
+            height=44, corner_radius=10,
+            fg_color=C["teal"], hover_color=C["teal_hov"],
+            text_color="#fff", font=_f(13, True),
+            state="disabled", command=self._send_calc_result)
+        self._send_btn.pack(fill="x", padx=12, pady=(0, 16))
+
+        # لاگ ارسال
+        self._calc_log = ctk.CTkTextbox(result_col, height=80,
+                                        fg_color=C["input"], text_color=C["text2"],
+                                        font=_f(10), corner_radius=8, border_width=0)
+        self._calc_log.pack(fill="x", padx=12, pady=(0, 12))
+        self._calc_log.configure(state="disabled")
+
+        self._calc_price_value = None  # قیمت محاسبه‌شده برای ارسال
+
+    def _get_channel_avg(self, name: str):
+        for r in self.results:
+            if r.get("channel") == name or r.get("url") == name:
+                buy, sell = r.get("buy"), r.get("sell")
+                if buy and sell:
+                    return (buy + sell) / 2
+                return buy or sell
+        return None
+
+    def _do_calc(self):
+        src_name = self._calc_src_var.get()
+        dst_name = self._calc_dst_var.get()
+
+        if not self.results:
+            messagebox.showwarning("بدون داده", "ابتدا استخراج را اجرا کنید.")
+            return
+
+        src_avg = self._get_channel_avg(src_name)
+        dst_avg = self._get_channel_avg(dst_name)
+
+        if src_avg is None:
+            messagebox.showwarning("داده‌ای نیست", f"قیمتی برای کانال مبدا «{src_name}» پیدا نشد.")
+            return
+        if dst_avg is None:
+            messagebox.showwarning("داده‌ای نیست", f"قیمتی برای کانال مقصد «{dst_name}» پیدا نشد.")
+            return
+
+        try:
+            threshold  = float(self._calc_threshold_e.get().strip() or "0")
+            deduction  = float(self._calc_deduction_e.get().strip() or "0")
+        except ValueError:
+            messagebox.showerror("خطا", "آستانه و کسر باید عدد باشند.")
+            return
+
+        diff = abs(src_avg - dst_avg)
+        proposed = src_avg - deduction
+
+        self._cr_src.configure(text=f"{src_avg:,.0f}")
+        self._cr_dst.configure(text=f"{dst_avg:,.0f}")
+        self._cr_diff.configure(text=f"{diff:,.0f}")
+
+        if diff > threshold:
+            status_txt   = f"✓ بیشتر از آستانه ({threshold:,.0f})"
+            status_color = C["buy"]
+            self._cr_price_card.configure(border_color=C["buy"], fg_color=C["buy_dim"])
+            self._cr_price_lbl.configure(text=f"{proposed:,.0f}", text_color=C["buy"])
+            self._send_btn.configure(state="normal")
+            self._calc_price_value = proposed
+        else:
+            status_txt   = f"✗ کمتر از آستانه ({threshold:,.0f})"
+            status_color = C["text3"]
+            self._cr_price_card.configure(border_color=C["border2"], fg_color=C["input"])
+            self._cr_price_lbl.configure(text=f"{proposed:,.0f}", text_color=C["text2"])
+            self._send_btn.configure(state="normal")  # همیشه قابل ارسال
+            self._calc_price_value = proposed
+
+        self._cr_stat.configure(text=status_txt, text_color=status_color)
+
+    def _save_calc_settings(self):
+        self.settings["calc_source"]    = self._calc_src_var.get()
+        self.settings["calc_dest"]      = self._calc_dst_var.get()
+        self.settings["calc_threshold"] = self._calc_threshold_e.get().strip()
+        self.settings["calc_deduction"] = self._calc_deduction_e.get().strip()
+        save_settings(self.settings)
+        messagebox.showinfo("ذخیره شد", "تنظیمات محاسبه ذخیره شد.")
+
+    def _send_calc_result(self):
+        if self._calc_price_value is None:
+            messagebox.showwarning("محاسبه نشده", "ابتدا محاسبه را انجام دهید.")
+            return
+
+        token    = self.settings.get("bot_token", "").strip()
+        chat_id  = self.settings.get("dest_channel", "").strip()
+        template = self.settings.get("msg_template", "{قیمت}")
+        buttons  = self.settings.get("inline_buttons", "")
+
+        if not token or not chat_id:
+            messagebox.showwarning("تنظیمات ناقص",
+                                   "توکن ربات و آیدی کانال مقصد را در تب «فرمت خروجی» وارد کنید.")
+            self._show_page("format")
+            return
+
+        jalali_date, time_str = shamsi_now()
+        text = template.replace("{قیمت}", f"{self._calc_price_value:,.0f}") \
+                       .replace("{تاریخ}", jalali_date) \
+                       .replace("{ساعت}",  time_str)
+
+        def _send():
+            try:
+                resp = bot_send_message(token, chat_id, text, buttons)
+                ok   = resp.get("ok", False)
+                self.after(0, lambda: self._calc_log_write(
+                    f"✓ ارسال موفق — message_id: {resp.get('result', {}).get('message_id', '?')}"
+                    if ok else f"✗ خطا: {resp}"))
+            except Exception as e:
+                self.after(0, lambda err=e: self._calc_log_write(f"✗ خطا در ارسال: {err}"))
+
+        threading.Thread(target=_send, daemon=True).start()
+        self._calc_log_write("در حال ارسال...")
+
+    def _calc_log_write(self, msg: str):
+        ts = datetime.now().strftime("%H:%M:%S")
+        self._calc_log.configure(state="normal")
+        self._calc_log.insert("end", f"[{ts}] {msg}\n")
+        self._calc_log.see("end")
+        self._calc_log.configure(state="disabled")
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # FORMAT PAGE — فرمت خروجی
+    # ══════════════════════════════════════════════════════════════════════════
+    def _build_format_page(self):
+        page = ctk.CTkFrame(self._content, fg_color=C["bg"], corner_radius=0)
+        self.pages["format"] = page
+        self._page_header(page, "فرمت پیام خروجی",
+                          "تنظیم قالب پیام و دکمه‌های شیشه‌ای برای ارسال ربات")
+
+        body = ctk.CTkScrollableFrame(page, fg_color="transparent")
+        body.pack(fill="both", expand=True, padx=24, pady=16)
+
+        # ─ کارت تنظیمات ربات ─────────────────────────────────────────────────
+        bot_card = self._card(body)
+        bot_card.pack(fill="x", pady=(0, 12))
+        ctk.CTkFrame(bot_card, height=3, fg_color=C["blue"], corner_radius=0).pack(fill="x")
+        self._label(bot_card, "اطلاعات ربات", 13, True).pack(
+            anchor="e", padx=16, pady=(14, 8))
+
+        def _sfield(lbl, attr, ph, key, secret=False):
+            r = ctk.CTkFrame(bot_card, fg_color="transparent")
+            r.pack(fill="x", padx=16, pady=5)
+            self._label(r, lbl, 11, color=C["text2"]).pack(anchor="e", fill="x", pady=(0, 3))
+            e = self._entry(r, ph, secret=secret, value=self.settings.get(key, ""))
+            e.pack(fill="x")
+            setattr(self, attr, e)
+
+        _sfield("توکن ربات (Bot Token)", "_fmt_token_e",
+                "123456:ABCdef...", "bot_token")
+        _sfield("آیدی کانال مقصد", "_fmt_chat_e",
+                "@channel_name یا -100xxxxxxxxxx", "dest_channel")
+
+        # ─ کارت قالب پیام ────────────────────────────────────────────────────
+        tmpl_card = self._card(body)
+        tmpl_card.pack(fill="x", pady=(0, 12))
+        ctk.CTkFrame(tmpl_card, height=3, fg_color=C["teal"], corner_radius=0).pack(fill="x")
+
+        hdr = ctk.CTkFrame(tmpl_card, fg_color="transparent")
+        hdr.pack(fill="x", padx=16, pady=(14, 4))
+        self._label(hdr, "قالب پیام", 13, True).pack(side="right")
+        self._label(hdr,
+                    "{قیمت}  {تاریخ}  {ساعت}",
+                    9, color=C["text3"]).pack(side="left")
+
+        self._fmt_template = ctk.CTkTextbox(
+            tmpl_card, height=110,
+            fg_color=C["input"], border_color=C["border2"],
+            border_width=1, text_color=C["text"], font=_f(12))
+        self._fmt_template.pack(fill="x", padx=16)
+        self._fmt_template.insert("1.0", self.settings.get(
+            "msg_template",
+            "نرخ تتر: {قیمت} تومان\nتاریخ: {تاریخ}\nساعت: {ساعت}"))
+
+        # ─ کارت دکمه‌های شیشه‌ای ─────────────────────────────────────────────
+        btn_card = self._card(body)
+        btn_card.pack(fill="x", pady=(0, 12))
+        ctk.CTkFrame(btn_card, height=3, fg_color=C["gold"], corner_radius=0).pack(fill="x")
+
+        hdr2 = ctk.CTkFrame(btn_card, fg_color="transparent")
+        hdr2.pack(fill="x", padx=16, pady=(14, 4))
+        self._label(hdr2, "دکمه‌های شیشه‌ای (Inline Buttons)", 13, True).pack(side="right")
+        self._label(hdr2, "متن | URL  —  چند دکمه در یک ردیف با ||",
+                    9, color=C["text3"]).pack(side="left")
+
+        self._fmt_buttons = ctk.CTkTextbox(
+            btn_card, height=90,
+            fg_color=C["input"], border_color=C["border2"],
+            border_width=1, text_color=C["text"], font=_f(11))
+        self._fmt_buttons.pack(fill="x", padx=16)
+        self._fmt_buttons.insert("1.0", self.settings.get("inline_buttons", ""))
+
+        self._label(btn_card,
+                    "مثال:\nخرید | https://t.me/my_channel\n"
+                    "فروش | https://t.me/my_channel || پشتیبانی | https://t.me/support",
+                    9, color=C["text3"]).pack(anchor="e", padx=16, pady=(4, 10))
+
+        # ─ کارت پیش‌نمایش ────────────────────────────────────────────────────
+        prev_card = self._card(body)
+        prev_card.pack(fill="x", pady=(0, 12))
+        ctk.CTkFrame(prev_card, height=3, fg_color=C["sell"], corner_radius=0).pack(fill="x")
+        self._label(prev_card, "پیش‌نمایش پیام", 13, True).pack(
+            anchor="e", padx=16, pady=(14, 6))
+
+        self._fmt_preview = ctk.CTkTextbox(
+            prev_card, height=100,
+            fg_color=C["bg2"], border_width=0, text_color=C["text2"],
+            font=_f(11))
+        self._fmt_preview.pack(fill="x", padx=16, pady=(0, 14))
+        self._fmt_preview.configure(state="disabled")
+
+        # ─ دکمه‌های عمل ──────────────────────────────────────────────────────
+        act_row = ctk.CTkFrame(body, fg_color="transparent")
+        act_row.pack(fill="x", pady=(0, 8))
+        self._btn(act_row, "💾 ذخیره تنظیمات", self._save_format_settings,
+                  primary=True, h=42).pack(side="right", padx=(6, 0))
+        self._btn(act_row, "👁 پیش‌نمایش", self._preview_format,
+                  primary=False, h=42).pack(side="right")
+
+    def _preview_format(self):
+        template = self._fmt_template.get("1.0", "end").strip()
+        jalali_date, time_str = shamsi_now()
+        sample_price = f"{166000:,}"
+        text = template.replace("{قیمت}", sample_price) \
+                       .replace("{تاریخ}", jalali_date) \
+                       .replace("{ساعت}",  time_str)
+        self._fmt_preview.configure(state="normal")
+        self._fmt_preview.delete("1.0", "end")
+        self._fmt_preview.insert("1.0", text)
+        self._fmt_preview.configure(state="disabled")
+
+    def _save_format_settings(self):
+        self.settings["bot_token"]      = self._fmt_token_e.get().strip()
+        self.settings["dest_channel"]   = self._fmt_chat_e.get().strip()
+        self.settings["msg_template"]   = self._fmt_template.get("1.0", "end").strip()
+        self.settings["inline_buttons"] = self._fmt_buttons.get("1.0", "end").strip()
+        save_settings(self.settings)
+        messagebox.showinfo("ذخیره شد", "تنظیمات فرمت خروجی ذخیره شد.")
 
     # ══════════════════════════════════════════════════════════════════════════
     # SETTINGS PAGE
