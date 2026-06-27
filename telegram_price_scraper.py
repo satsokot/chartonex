@@ -11,7 +11,7 @@ import threading
 import asyncio
 from datetime import datetime
 from pathlib import Path
-from tkinter import messagebox, ttk
+from tkinter import messagebox
 import tkinter as tk
 
 
@@ -776,6 +776,7 @@ class ChartoneXApp(ctk.CTk):
         self.results = results
         self._log(f"✓ {len(results)} نتیجه یافت شد.")
         self._refresh_output()
+        self._show_page("output")
         if self._running:
             self._start_countdown(self._interval_seconds)
 
@@ -882,51 +883,25 @@ class ChartoneXApp(ctk.CTk):
         self.card_total = self._make_stat_card(summary_row, "تعداد نتایج", "0", COLORS["accent"])
         self.card_total.pack(side="left", fill="x", expand=True)
 
-        # Table frame
+        # Table header row
         table_card = ctk.CTkFrame(page, fg_color=COLORS["bg_card"],
                                   corner_radius=12, border_width=1,
                                   border_color=COLORS["border"])
-        table_card.pack(fill="both", expand=True, padx=24, pady=(0, 24))
+        table_card.pack(fill="both", expand=True, padx=24, pady=(0, 4))
 
-        # Treeview style
-        style = ttk.Style()
-        style.theme_use("default")
-        style.configure("Dark.Treeview",
-                        background=COLORS["bg_input"],
-                        foreground=COLORS["text_primary"],
-                        fieldbackground=COLORS["bg_input"],
-                        borderwidth=0,
-                        rowheight=36,
-                        font=("Segoe UI", 11))
-        style.configure("Dark.Treeview.Heading",
-                        background=COLORS["bg_secondary"],
-                        foreground=COLORS["text_secondary"],
-                        relief="flat",
-                        font=("Segoe UI", 11, "bold"))
-        style.map("Dark.Treeview",
-                  background=[("selected", COLORS["bg_card"])],
-                  foreground=[("selected", COLORS["accent"])])
+        # Column header
+        col_header = ctk.CTkFrame(table_card, fg_color=COLORS["bg_secondary"], corner_radius=0, height=36)
+        col_header.pack(fill="x", padx=0, pady=(0, 0))
+        col_header.pack_propagate(False)
+        for text, w in [("کانال", 160), ("خرید (تومان)", 130), ("فروش (تومان)", 130), ("تاریخ", 130), ("پیش‌نمایش پیام", 0)]:
+            ctk.CTkLabel(col_header, text=text, width=w if w else 0,
+                         font=ctk.CTkFont("Segoe UI", 11, "bold"),
+                         text_color=COLORS["text_secondary"],
+                         anchor="center").pack(side="left", padx=4)
 
-        cols = ("channel", "buy", "sell", "date", "preview")
-        self.tree = ttk.Treeview(table_card, columns=cols, show="headings",
-                                 style="Dark.Treeview")
-
-        col_defs = [
-            ("channel", "کانال", 160),
-            ("buy", "خرید (تومان)", 130),
-            ("sell", "فروش (تومان)", 130),
-            ("date", "تاریخ", 130),
-            ("preview", "پیش‌نمایش پیام", 400),
-        ]
-        for col_id, heading, width in col_defs:
-            self.tree.heading(col_id, text=heading)
-            self.tree.column(col_id, width=width, anchor="center" if col_id != "preview" else "w")
-
-        scrollbar = ttk.Scrollbar(table_card, orient="vertical", command=self.tree.yview)
-        self.tree.configure(yscrollcommand=scrollbar.set)
-
-        self.tree.pack(side="left", fill="both", expand=True, padx=(8, 0), pady=8)
-        scrollbar.pack(side="right", fill="y", pady=8, padx=(0, 4))
+        # Scrollable rows
+        self.output_scroll = ctk.CTkScrollableFrame(table_card, fg_color="transparent")
+        self.output_scroll.pack(fill="both", expand=True, padx=4, pady=4)
 
         # Export button
         btn_frame = ctk.CTkFrame(page, fg_color="transparent")
@@ -955,30 +930,45 @@ class ChartoneXApp(ctk.CTk):
         return card
 
     def _refresh_output(self):
-        for item in self.tree.get_children():
-            self.tree.delete(item)
+        # Clear old rows
+        for w in self.output_scroll.winfo_children():
+            w.destroy()
 
-        buys = [r["buy"] for r in self.results if r.get("buy")]
+        buys  = [r["buy"]  for r in self.results if r.get("buy")]
         sells = [r["sell"] for r in self.results if r.get("sell")]
 
-        best_buy = f"{max(buys):,.0f}" if buys else "—"
-        best_sell = f"{min(sells):,.0f}" if sells else "—"
-
-        self.card_best_buy._value_label.configure(text=best_buy)
-        self.card_best_sell._value_label.configure(text=best_sell)
+        self.card_best_buy._value_label.configure(
+            text=f"{max(buys):,.0f}" if buys else "—")
+        self.card_best_sell._value_label.configure(
+            text=f"{min(sells):,.0f}" if sells else "—")
         self.card_total._value_label.configure(text=str(len(self.results)))
         self.result_count_label.configure(text=f"{len(self.results)} نتیجه")
 
-        for r in self.results:
-            buy_str = f"{r['buy']:,.0f}" if r.get("buy") else "—"
+        for i, r in enumerate(self.results):
+            buy_str  = f"{r['buy']:,.0f}"  if r.get("buy")  else "—"
             sell_str = f"{r['sell']:,.0f}" if r.get("sell") else "—"
-            self.tree.insert("", "end", values=(
-                r.get("channel", ""),
-                buy_str,
-                sell_str,
-                r.get("date", ""),
-                r.get("text_preview", ""),
-            ))
+            row_bg = COLORS["bg_input"] if i % 2 == 0 else COLORS["bg_card"]
+
+            row = ctk.CTkFrame(self.output_scroll, fg_color=row_bg,
+                               corner_radius=4, height=38)
+            row.pack(fill="x", pady=1)
+            row.pack_propagate(False)
+
+            def _cell(parent, text, width, color=COLORS["text_primary"], bold=False):
+                ctk.CTkLabel(parent, text=text, width=width,
+                             font=ctk.CTkFont("Segoe UI", 11, "bold" if bold else "normal"),
+                             text_color=color,
+                             anchor="center").pack(side="left", padx=4)
+
+            _cell(row, r.get("channel", "")[:22], 160)
+            _cell(row, buy_str,  130, COLORS["buy_color"],  bold=bool(r.get("buy")))
+            _cell(row, sell_str, 130, COLORS["sell_color"], bold=bool(r.get("sell")))
+            _cell(row, r.get("date", ""), 130, COLORS["text_secondary"])
+            # Preview — rest of the width
+            ctk.CTkLabel(row, text=r.get("text_preview", "")[:80],
+                         font=ctk.CTkFont("Segoe UI", 10),
+                         text_color=COLORS["text_secondary"],
+                         anchor="w").pack(side="left", fill="x", expand=True, padx=4)
 
     def _export_csv(self):
         if not self.results:
