@@ -370,7 +370,7 @@ class ChartoneXApp(ctk.CTk):
         self.ch_name_entry.pack(side="left", fill="x", expand=True, padx=(6, 0))
 
         row2 = ctk.CTkFrame(add_card, fg_color="transparent")
-        row2.pack(fill="x", padx=16, pady=(0, 14))
+        row2.pack(fill="x", padx=16, pady=(0, 8))
 
         ctk.CTkLabel(row2, text="لینک کانال:", width=90,
                      text_color=COLORS["text_secondary"],
@@ -380,9 +380,48 @@ class ChartoneXApp(ctk.CTk):
                                          height=36, fg_color=COLORS["bg_input"],
                                          border_color=COLORS["border"],
                                          text_color=COLORS["text_primary"])
-        self.ch_url_entry.pack(side="left", fill="x", expand=True, padx=(6, 12))
+        self.ch_url_entry.pack(side="left", fill="x", expand=True, padx=(6, 0))
 
-        ctk.CTkButton(row2, text="+ افزودن", width=110, height=36,
+        # Sample message row
+        row3 = ctk.CTkFrame(add_card, fg_color="transparent")
+        row3.pack(fill="x", padx=16, pady=(0, 6))
+
+        ctk.CTkLabel(row3, text="نمونه پیام:", width=90,
+                     text_color=COLORS["text_secondary"],
+                     font=ctk.CTkFont("Segoe UI", 12)).pack(side="left", anchor="n", pady=4)
+
+        sample_col = ctk.CTkFrame(row3, fg_color="transparent")
+        sample_col.pack(side="left", fill="x", expand=True, padx=(6, 0))
+
+        self.ch_sample_entry = ctk.CTkTextbox(sample_col, height=72,
+                                              fg_color=COLORS["bg_input"],
+                                              border_color=COLORS["border"],
+                                              border_width=1,
+                                              text_color=COLORS["text_primary"],
+                                              font=ctk.CTkFont("Segoe UI", 11))
+        self.ch_sample_entry.pack(fill="x")
+        self.ch_sample_entry.insert("end", "")
+
+        # Test result label
+        self.ch_test_label = ctk.CTkLabel(sample_col, text="یک نمونه پیام از کانال paste کنید",
+                                          font=ctk.CTkFont("Segoe UI", 10),
+                                          text_color=COLORS["text_secondary"],
+                                          anchor="w")
+        self.ch_test_label.pack(fill="x", pady=(2, 0))
+
+        # Test button + Add button
+        row4 = ctk.CTkFrame(add_card, fg_color="transparent")
+        row4.pack(fill="x", padx=16, pady=(0, 14))
+
+        ctk.CTkButton(row4, text="🔍 تست استخراج", width=130, height=34,
+                      corner_radius=8,
+                      fg_color=COLORS["bg_input"], hover_color=COLORS["border"],
+                      border_width=1, border_color=COLORS["border"],
+                      text_color=COLORS["text_primary"],
+                      font=ctk.CTkFont("Segoe UI", 11),
+                      command=self._test_sample).pack(side="left", padx=(0, 8))
+
+        ctk.CTkButton(row4, text="+ افزودن کانال", width=130, height=34,
                       corner_radius=8,
                       fg_color=COLORS["accent"], hover_color=COLORS["accent_hover"],
                       text_color="#000000",
@@ -409,9 +448,31 @@ class ChartoneXApp(ctk.CTk):
         self.channel_scroll = ctk.CTkScrollableFrame(list_card, fg_color="transparent")
         self.channel_scroll.pack(fill="both", expand=True, padx=8, pady=(0, 12))
 
+    def _test_sample(self):
+        sample = self.ch_sample_entry.get("1.0", "end").strip()
+        if not sample:
+            self.ch_test_label.configure(
+                text="⚠ ابتدا یک نمونه پیام paste کنید", text_color=COLORS["accent_yellow"])
+            return
+        prices = extract_prices(sample)
+        if prices:
+            parts = []
+            if "buy" in prices:
+                parts.append(f"خرید: {prices['buy']:,.0f}")
+            if "sell" in prices:
+                parts.append(f"فروش: {prices['sell']:,.0f}")
+            self.ch_test_label.configure(
+                text="✓ استخراج موفق — " + "  |  ".join(parts),
+                text_color=COLORS["buy_color"])
+        else:
+            self.ch_test_label.configure(
+                text="✗ قیمتی یافت نشد — فرمت پیام را بررسی کنید",
+                text_color=COLORS["accent_red"])
+
     def _add_channel(self):
         name = self.ch_name_entry.get().strip()
         url = self.ch_url_entry.get().strip()
+        sample = self.ch_sample_entry.get("1.0", "end").strip()
 
         if not url:
             messagebox.showwarning("ورودی ناقص", "لطفاً لینک کانال را وارد کنید.")
@@ -429,11 +490,16 @@ class ChartoneXApp(ctk.CTk):
         self.channels.append({
             "name": name or url,
             "url": url,
+            "sample": sample,
             "added": datetime.now().strftime("%Y-%m-%d %H:%M"),
         })
         save_channels(self.channels)
         self.ch_name_entry.delete(0, "end")
         self.ch_url_entry.delete(0, "end")
+        self.ch_sample_entry.delete("1.0", "end")
+        self.ch_test_label.configure(
+            text="یک نمونه پیام از کانال paste کنید",
+            text_color=COLORS["text_secondary"])
         self._refresh_channel_list()
 
     def _refresh_channel_list(self):
@@ -447,16 +513,23 @@ class ChartoneXApp(ctk.CTk):
         self.ch_count_label.configure(text=f"{count} کانال")
 
     def _build_channel_row(self, idx, ch):
-        row = ctk.CTkFrame(self.channel_scroll, fg_color=COLORS["bg_input"],
-                            corner_radius=8, height=52)
-        row.pack(fill="x", pady=3)
-        row.pack_propagate(False)
+        sample = ch.get("sample", "")
+        prices = extract_prices(sample) if sample else {}
+        has_prices = bool(prices)
 
-        ctk.CTkLabel(row, text=str(idx + 1), width=32,
+        row = ctk.CTkFrame(self.channel_scroll, fg_color=COLORS["bg_input"],
+                           corner_radius=8)
+        row.pack(fill="x", pady=3)
+
+        top = ctk.CTkFrame(row, fg_color="transparent", height=40)
+        top.pack(fill="x")
+        top.pack_propagate(False)
+
+        ctk.CTkLabel(top, text=str(idx + 1), width=32,
                      font=ctk.CTkFont("Segoe UI", 11),
                      text_color=COLORS["text_secondary"]).pack(side="left", padx=(12, 4))
 
-        info_frame = ctk.CTkFrame(row, fg_color="transparent")
+        info_frame = ctk.CTkFrame(top, fg_color="transparent")
         info_frame.pack(side="left", fill="both", expand=True, padx=8)
 
         ctk.CTkLabel(info_frame, text=ch.get("name", ch["url"]),
@@ -468,13 +541,36 @@ class ChartoneXApp(ctk.CTk):
                      text_color=COLORS["text_secondary"],
                      anchor="w").pack(fill="x")
 
-        ctk.CTkButton(row, text="✕", width=32, height=32,
+        # Status badge
+        if sample:
+            badge_text = "✓ فرمت تشخیص داده شد" if has_prices else "✗ فرمت ناشناخته"
+            badge_color = COLORS["buy_color"] if has_prices else COLORS["accent_red"]
+        else:
+            badge_text = "⚠ بدون نمونه"
+            badge_color = COLORS["accent_yellow"]
+
+        ctk.CTkLabel(top, text=badge_text,
+                     font=ctk.CTkFont("Segoe UI", 10),
+                     text_color=badge_color).pack(side="right", padx=(0, 8))
+
+        ctk.CTkButton(top, text="✕", width=28, height=28,
                       corner_radius=6,
                       fg_color="transparent",
                       hover_color=COLORS["accent_red"],
                       text_color=COLORS["text_secondary"],
-                      font=ctk.CTkFont("Segoe UI", 13),
-                      command=lambda i=idx: self._remove_channel(i)).pack(side="right", padx=12)
+                      font=ctk.CTkFont("Segoe UI", 12),
+                      command=lambda i=idx: self._remove_channel(i)).pack(side="right", padx=(0, 8))
+
+        # Show sample preview if exists
+        if sample:
+            preview_frame = ctk.CTkFrame(row, fg_color=COLORS["bg_card"], corner_radius=4)
+            preview_frame.pack(fill="x", padx=12, pady=(0, 8))
+            ctk.CTkLabel(preview_frame,
+                         text=sample[:120].replace("\n", " ↵ "),
+                         font=ctk.CTkFont("Courier New", 9),
+                         text_color=COLORS["text_secondary"],
+                         anchor="w",
+                         wraplength=600).pack(anchor="w", padx=8, pady=4)
 
     def _remove_channel(self, idx):
         ch = self.channels[idx]
