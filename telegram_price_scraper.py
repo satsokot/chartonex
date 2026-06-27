@@ -90,43 +90,84 @@ FA_DIGITS = str.maketrans("۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩", "012345678
 NUM = r'([\d۰-۹٠-٩][،,\d۰-۹٠-٩\.]*)'
 
 PRICE_PATTERNS = [
+    # ── فرمت تتر[USDT] عدد خرید/فروش ──────────────────────────────
     (rf'تتر\s*\[?USDT\]?\s*{NUM}\s*خرید', "buy"),
     (rf'تتر\s*\[?USDT\]?\s*{NUM}\s*فروش', "sell"),
+    # ── خرید/فروش[USDT] عدد ────────────────────────────────────────
     (rf'خرید\s*\[?USDT\]?\s*{NUM}', "buy"),
     (rf'فروش\s*\[?USDT\]?\s*{NUM}', "sell"),
-    (rf'قیمت\s*تتر\s*[:\-]?\s*{NUM}', "buy"),
+    # ── قیمت/نرخ تتر : عدد ─────────────────────────────────────────
+    (rf'(?:قیمت|نرخ)\s*تتر\s*[:\-]?\s*{NUM}', "buy"),
+    # ── نرخ/قیمت تتر عدد تومان (فرمت تترلند) ───────────────────────
+    (rf'(?:نرخ|قیمت)\s*تتر\s*[:\-]?\s*{NUM}\s*تومان', "buy"),
+    # ── خرید/فروش : عدد ─────────────────────────────────────────────
     (rf'خرید\s*[:\-|]\s*{NUM}', "buy"),
     (rf'فروش\s*[:\-|]\s*{NUM}', "sell"),
     (rf'buy\s*[:\-|]\s*{NUM}', "buy"),
     (rf'sell\s*[:\-|]\s*{NUM}', "sell"),
+    # ── قیمت خرید / قیمت فروش ───────────────────────────────────────
     (rf'قیمت\s*خرید[^\d۰-۹٠-٩]{{0,15}}{NUM}', "buy"),
     (rf'قیمت\s*فروش[^\d۰-۹٠-٩]{{0,15}}{NUM}', "sell"),
-    (rf'خرید\s*[←→➡⬅🔴🟢✅◈◆◇]?\s*{NUM}', "buy"),
-    (rf'فروش\s*[←→➡⬅🔴🟢✅◈◆◇]?\s*{NUM}', "sell"),
-    (rf'تتر\s*[:\-]?\s*خرید\s*[:\-]?\s*{NUM}', "buy"),
-    (rf'تتر\s*[:\-]?\s*فروش\s*[:\-]?\s*{NUM}', "sell"),
+    # ── نرخ خرید / نرخ فروش ─────────────────────────────────────────
     (rf'نرخ\s*خرید[^\d۰-۹٠-٩]{{0,10}}{NUM}', "buy"),
     (rf'نرخ\s*فروش[^\d۰-۹٠-٩]{{0,10}}{NUM}', "sell"),
+    # ── خرید/فروش با فلش یا آیکون ───────────────────────────────────
+    (rf'خرید\s*[←→➡⬅🔴🟢✅◈◆◇]?\s*{NUM}', "buy"),
+    (rf'فروش\s*[←→➡⬅🔴🟢✅◈◆◇]?\s*{NUM}', "sell"),
+    # ── تتر : خرید/فروش عدد ─────────────────────────────────────────
+    (rf'تتر\s*[:\-]?\s*خرید\s*[:\-]?\s*{NUM}', "buy"),
+    (rf'تتر\s*[:\-]?\s*فروش\s*[:\-]?\s*{NUM}', "sell"),
 ]
+
+# کلمات کلیدی که نشان می‌دهند پیام درباره تتر/USDT است
+_USDT_KEYWORDS = re.compile(r'تتر|USDT|usdt|تدر|تتر', re.IGNORECASE)
+
+# الگوی پشتیبان: هر عدد ۵ تا ۷ رقمی در کنار «تومان» یا در پیام تتری
+_FALLBACK_NUM = re.compile(
+    r'([\d۰-۹٠-٩]{2,3}[،,٬][\d۰-۹٠-٩]{3}(?:[،,٬][\d۰-۹٠-٩]{3})?)'
+    r'(?=\s*تومان|\s*$|\s*\n|\s*[—\-\|])',
+    re.MULTILINE
+)
 
 
 def _to_float(raw: str):
     cleaned = raw.translate(FA_DIGITS).replace(",", "").replace("،", "").replace("٬", "").strip()
     try:
         val = float(cleaned)
-        return val if 10_000 < val < 100_000_000 else None
+        return val if 50_000 <= val <= 999_999_999 else None
     except ValueError:
         return None
 
 
 def extract_prices(text: str):
     prices = {}
+
+    # ۱. الگوهای اصلی
     for pattern, side in PRICE_PATTERNS:
         m = re.search(pattern, text, re.IGNORECASE)
         if m:
             val = _to_float(m.group(1))
             if val and side not in prices:
                 prices[side] = val
+
+    # ۲. اگر هنوز قیمتی پیدا نشد و پیام درباره تتر است، هر عدد در محدوده تومان
+    if not prices and _USDT_KEYWORDS.search(text):
+        for m in _FALLBACK_NUM.finditer(text):
+            val = _to_float(m.group(1))
+            if val and 50_000 <= val <= 999_999:
+                prices.setdefault("buy", val)
+                break
+
+    # ۳. اگر هنوز نشد، عدد ۵–۷ رقمی ساده در پیام تتری
+    if not prices and _USDT_KEYWORDS.search(text):
+        simple = re.findall(
+            r'[\d۰-۹٠-٩]{2,3}[،,٬]?[\d۰-۹٠-٩]{3}', text)
+        for raw in simple:
+            val = _to_float(raw)
+            if val and 50_000 <= val <= 999_999:
+                prices.setdefault("buy", val)
+                break
+
     return prices
 
 
