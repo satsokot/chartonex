@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Skills Demo — Motion + 3D + UI/UX Pro Max</title>
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/framer-motion@11/dist/framer-motion.js" crossorigin></script>
+  <script src="https://unpkg.com/three@0.163.0/build/three.min.js" crossorigin></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: oklch(0.10 0.02 260);
+      --surface: oklch(0.15 0.03 260);
+      --surface2: oklch(0.20 0.04 260);
+      --ink: oklch(0.97 0.01 260);
+      --ink2: oklch(0.70 0.02 260);
+      --accent: oklch(0.70 0.22 280);
+      --accent2: oklch(0.75 0.20 180);
+      --accent3: oklch(0.72 0.22 330);
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      min-height: 100dvh;
+      overflow-x: hidden;
+    }
+
+    #root { display: contents; }
+
+    #three-canvas {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      opacity: 0.45;
+    }
+
+    .layer {
+      position: relative;
+      z-index: 1;
+    }
+
+    .hero {
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      text-align: center;
+      gap: 1.5rem;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: oklch(0.20 0.05 280 / 0.8);
+      border: 1px solid oklch(0.40 0.10 280 / 0.5);
+      border-radius: 999px;
+      padding: 0.35rem 1rem;
+      font-size: 0.78rem;
+      font-weight: 500;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--accent);
+      backdrop-filter: blur(8px);
+    }
+
+    h1 {
+      font-size: clamp(2.5rem, 8vw, 5.5rem);
+      font-weight: 800;
+      line-height: 1.05;
+      letter-spacing: -0.04em;
+      text-wrap: balance;
+      color: var(--ink);
+    }
+
+    h1 span {
+      color: var(--accent);
+    }
+
+    .subtitle {
+      font-size: clamp(1rem, 2.5vw, 1.25rem);
+      color: var(--ink2);
+      max-width: 52ch;
+      line-height: 1.6;
+      text-wrap: pretty;
+    }
+
+    .cta-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      justify-content: center;
+      margin-top: 0.5rem;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.75rem 1.75rem;
+      border-radius: 10px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #0a0612;
+    }
+
+    .btn-secondary {
+      background: transparent;
+      color: var(--ink);
+      border: 1px solid oklch(0.40 0.05 260);
+    }
+
+    .cards-section {
+      padding: 6rem 2rem;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    .section-label {
+      font-size: 0.8rem;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 1rem;
+    }
+
+    .section-title {
+      font-size: clamp(1.8rem, 4vw, 2.8rem);
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      line-height: 1.1;
+      margin-bottom: 3rem;
+      text-wrap: balance;
+    }
+
+    .cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.5rem;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid oklch(0.25 0.03 260);
+      border-radius: 16px;
+      padding: 2rem;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at var(--mx, 50%) var(--my, 50%), oklch(0.70 0.22 280 / 0.08) 0%, transparent 60%);
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    .card:hover::before { opacity: 1; }
+
+    .card-icon {
+      width: 52px;
+      height: 52px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .card h3 {
+      font-size: 1.125rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+    }
+
+    .card p {
+      font-size: 0.9rem;
+      color: var(--ink2);
+      line-height: 1.65;
+    }
+
+    .drag-section {
+      padding: 6rem 2rem;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    .drag-zone {
+      background: var(--surface);
+      border: 1.5px dashed oklch(0.35 0.06 260);
+      border-radius: 20px;
+      height: 320px;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .drag-hint {
+      color: var(--ink2);
+      font-size: 0.9rem;
+      pointer-events: none;
+      user-select: none;
+    }
+
+    .draggable-chip {
+      position: absolute;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.6rem 1.2rem;
+      border-radius: 999px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: grab;
+      user-select: none;
+      box-shadow: 0 8px 24px -4px oklch(0 0 0 / 0.4);
+    }
+
+    .springs-section {
+      padding: 6rem 2rem;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    .springs-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 2rem;
+      align-items: end;
+    }
+
+    .spring-demo {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .spring-ball {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      cursor: pointer;
+    }
+
+    .spring-label {
+      font-size: 0.75rem;
+      color: var(--ink2);
+      text-align: center;
+      font-weight: 500;
+      letter-spacing: 0.03em;
+    }
+
+    .spring-sublabel {
+      font-size: 0.7rem;
+      color: oklch(0.50 0.02 260);
+      font-family: monospace;
+    }
+
+    .scroll-section {
+      padding: 6rem 2rem;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    .scroll-items {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .scroll-item {
+      background: var(--surface);
+      border: 1px solid oklch(0.22 0.03 260);
+      border-radius: 14px;
+      padding: 2rem;
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+    }
+
+    .scroll-item-num {
+      font-size: 2rem;
+      font-weight: 800;
+      color: var(--accent);
+      min-width: 3ch;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .scroll-item h4 {
+      font-size: 1rem;
+      font-weight: 700;
+      margin-bottom: 0.25rem;
+    }
+
+    .scroll-item p {
+      font-size: 0.875rem;
+      color: var(--ink2);
+      line-height: 1.6;
+    }
+
+    footer {
+      padding: 4rem 2rem;
+      text-align: center;
+      color: var(--ink2);
+      font-size: 0.85rem;
+      border-top: 1px solid oklch(0.18 0.03 260);
+    }
+
+    footer strong { color: var(--accent); }
+
+    @media (prefers-reduced-motion: reduce) {
+      * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="three-canvas"></canvas>
+  <div id="root"></div>
+
+  <script>
+    // ─── Three.js 3D Background ────────────────────────────────────────────────
+    (function initThree() {
+      const canvas = document.getElementById('three-canvas');
+      const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+      renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+      renderer.setSize(innerWidth, innerHeight);
+
+      const scene = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 0.1, 100);
+      camera.position.set(0, 0, 6);
+
+      // Ambient + directional light
+      scene.add(new THREE.AmbientLight(0xffffff, 0.4));
+      const dirLight = new THREE.DirectionalLight(0x8b5cf6, 2.5);
+      dirLight.position.set(5, 5, 5);
+      scene.add(dirLight);
+      const dirLight2 = new THREE.DirectionalLight(0x06b6d4, 1.8);
+      dirLight2.position.set(-5, -3, 3);
+      scene.add(dirLight2);
+
+      // Floating geometric shapes
+      const shapes = [];
+      const geos = [
+        new THREE.IcosahedronGeometry(0.6, 1),
+        new THREE.OctahedronGeometry(0.5, 0),
+        new THREE.TetrahedronGeometry(0.55, 0),
+        new THREE.TorusGeometry(0.4, 0.15, 16, 40),
+        new THREE.BoxGeometry(0.7, 0.7, 0.7),
+        new THREE.SphereGeometry(0.45, 32, 32),
+        new THREE.ConeGeometry(0.4, 0.8, 6),
+        new THREE.TorusKnotGeometry(0.3, 0.1, 64, 8),
+      ];
+
+      const colors = [0x8b5cf6, 0x06b6d4, 0xec4899, 0x10b981, 0xf59e0b, 0x3b82f6, 0xef4444, 0xa78bfa];
+
+      geos.forEach((geo, i) => {
+        const mat = new THREE.MeshPhongMaterial({
+          color: colors[i],
+          transparent: true,
+          opacity: 0.75,
+          wireframe: i % 3 === 0,
+          shininess: 80,
+        });
+        const mesh = new THREE.Mesh(geo, mat);
+        const angle = (i / geos.length) * Math.PI * 2;
+        const radius = 2.8 + Math.random() * 0.8;
+        mesh.position.set(
+          Math.cos(angle) * radius,
+          Math.sin(angle) * radius * 0.7 + (Math.random() - 0.5) * 1.5,
+          (Math.random() - 0.5) * 2
+        );
+        mesh.userData = {
+          speed: 0.003 + Math.random() * 0.004,
+          rotX: (Math.random() - 0.5) * 0.012,
+          rotY: (Math.random() - 0.5) * 0.012,
+          floatSpeed: 0.4 + Math.random() * 0.6,
+          floatAmp: 0.15 + Math.random() * 0.2,
+          originY: mesh.position.y,
+          phase: Math.random() * Math.PI * 2,
+          orbitRadius: radius,
+          orbitAngle: angle,
+          orbitSpeed: (0.0015 + Math.random() * 0.001) * (Math.random() > 0.5 ? 1 : -1),
+        };
+        scene.add(mesh);
+        shapes.push(mesh);
+      });
+
+      // Particle field
+      const particleCount = 220;
+      const positions = new Float32Array(particleCount * 3);
+      for (let i = 0; i < particleCount; i++) {
+        positions[i * 3]     = (Math.random() - 0.5) * 18;
+        positions[i * 3 + 1] = (Math.random() - 0.5) * 18;
+        positions[i * 3 + 2] = (Math.random() - 0.5) * 12;
+      }
+      const particleGeo = new THREE.BufferGeometry();
+      particleGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      const particleMat = new THREE.PointsMaterial({ color: 0x8b5cf6, size: 0.04, transparent: true, opacity: 0.5 });
+      scene.add(new THREE.Points(particleGeo, particleMat));
+
+      // Mouse tracking
+      let mx = 0, my = 0;
+      window.addEventListener('mousemove', e => {
+        mx = (e.clientX / innerWidth - 0.5) * 2;
+        my = -(e.clientY / innerHeight - 0.5) * 2;
+      });
+
+      let t = 0;
+      function animate() {
+        requestAnimationFrame(animate);
+        t += 0.016;
+
+        camera.position.x += (mx * 0.4 - camera.position.x) * 0.05;
+        camera.position.y += (my * 0.3 - camera.position.y) * 0.05;
+        camera.lookAt(scene.position);
+
+        shapes.forEach(mesh => {
+          const d = mesh.userData;
+          d.orbitAngle += d.orbitSpeed;
+          mesh.position.x = Math.cos(d.orbitAngle) * d.orbitRadius;
+          mesh.position.z = Math.sin(d.orbitAngle) * d.orbitRadius * 0.5;
+          mesh.position.y = d.originY + Math.sin(t * d.floatSpeed + d.phase) * d.floatAmp;
+          mesh.rotation.x += d.rotX;
+          mesh.rotation.y += d.rotY;
+        });
+
+        renderer.render(scene, camera);
+      }
+      animate();
+
+      window.addEventListener('resize', () => {
+        camera.aspect = innerWidth / innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(innerWidth, innerHeight);
+      });
+    })();
+
+    // ─── React + Framer Motion App ─────────────────────────────────────────────
+    const { useState, useRef, useEffect } = React;
+    const { motion, AnimatePresence, useSpring, useMotionValue, useTransform } = FramerMotion;
+
+    // Card with mouse-tracking glow
+    function GlowCard({ icon, iconBg, title, desc, delay = 0 }) {
+      const cardRef = useRef(null);
+      const handleMouseMove = e => {
+        const rect = cardRef.current.getBoundingClientRect();
+        const x = ((e.clientX - rect.left) / rect.width) * 100;
+        const y = ((e.clientY - rect.top) / rect.height) * 100;
+        cardRef.current.style.setProperty('--mx', x + '%');
+        cardRef.current.style.setProperty('--my', y + '%');
+      };
+      return (
+        React.createElement(motion.div, {
+          ref: cardRef,
+          className: "card",
+          onMouseMove: handleMouseMove,
+          initial: { opacity: 0, y: 40 },
+          whileInView: { opacity: 1, y: 0 },
+          viewport: { once: true, amount: 0.3 },
+          transition: { duration: 0.5, delay, ease: [0.16, 1, 0.3, 1] },
+          whileHover: { y: -6, boxShadow: "0 24px 48px -8px oklch(0 0 0 / 0.5), 0 0 0 1px oklch(0.40 0.10 280 / 0.3)" },
+          whileTap: { scale: 0.97 },
+        },
+          React.createElement("div", { className: "card-icon", style: { background: iconBg } }, icon),
+          React.createElement("h3", null, title),
+          React.createElement("p", null, desc)
+        )
+      );
+    }
+
+    // Spring demos
+    function SpringBall({ color, label, sublabel, stiffness, damping }) {
+      const [tapped, setTapped] = useState(false);
+      return (
+        React.createElement("div", { className: "spring-demo" },
+          React.createElement(motion.div, {
+            className: "spring-ball",
+            style: { background: color, boxShadow: `0 8px 24px -4px ${color}66` },
+            animate: { scale: tapped ? 1.5 : 1, rotate: tapped ? 180 : 0 },
+            transition: { type: "spring", stiffness, damping, mass: 1 },
+            onClick: () => setTapped(v => !v),
+            whileHover: { filter: "brightness(1.2)" },
+            whileTap: { scale: 0.85 },
+          }),
+          React.createElement("div", { className: "spring-label" }, label),
+          React.createElement("div", { className: "spring-sublabel" }, sublabel)
+        )
+      );
+    }
+
+    // Draggable chip
+    function DragChip({ children, color, initial }) {
+      return (
+        React.createElement(motion.div, {
+          className: "draggable-chip",
+          style: { background: color + "22", border: `1px solid ${color}55`, color, left: initial.x, top: initial.y },
+          drag: true,
+          dragMomentum: false,
+          whileDrag: { scale: 1.12, zIndex: 10, boxShadow: `0 16px 40px -8px ${color}55`, cursor: "grabbing" },
+          whileHover: { scale: 1.06 },
+          dragElastic: 0.2,
+        }, children)
+      );
+    }
+
+    function App() {
+      const scrollCards = [
+        { num: "01", title: "Spring Physics", desc: "Natural motion using mass, stiffness, and damping instead of duration curves." },
+        { num: "02", title: "Layout Animations", desc: "Animate any layout change automatically — reorder, resize, or reposition." },
+        { num: "03", title: "Gesture Recognition", desc: "Hover, tap, drag, focus, and scroll gestures with declarative props." },
+        { num: "04", title: "Exit Animations", desc: "AnimatePresence enables elements to animate out before being unmounted." },
+        { num: "05", title: "Variants & Orchestration", desc: "Coordinate complex sequences with named states and staggered children." },
+      ];
+
+      return (
+        React.createElement(React.Fragment, null,
+          // ── Hero ──────────────────────────────────────────────────────
+          React.createElement("section", { className: "layer hero" },
+            React.createElement(motion.div, {
+              className: "badge",
+              initial: { opacity: 0, y: -16 },
+              animate: { opacity: 1, y: 0 },
+              transition: { duration: 0.5, ease: [0.16, 1, 0.3, 1] },
+            }, "✦ Skills Demo — motion-framer + Three.js + UI/UX Pro Max"),
+
+            React.createElement(motion.h1, {
+              initial: { opacity: 0, y: 32 },
+              animate: { opacity: 1, y: 0 },
+              transition: { duration: 0.65, delay: 0.1, ease: [0.16, 1, 0.3, 1] },
+            },
+              "Production-grade", React.createElement("br"),
+              React.createElement("span", null, "Motion & 3D")
+            ),
+
+            React.createElement(motion.p, {
+              className: "subtitle",
+              initial: { opacity: 0, y: 24 },
+              animate: { opacity: 1, y: 0 },
+              transition: { duration: 0.6, delay: 0.2, ease: [0.16, 1, 0.3, 1] },
+            }, "A live showcase of the installed skills: spring physics, gesture interactions, layout animations, drag-and-drop, scroll reveals, and a Three.js 3D background."),
+
+            React.createElement(motion.div, {
+              className: "cta-row",
+              initial: { opacity: 0, y: 16 },
+              animate: { opacity: 1, y: 0 },
+              transition: { duration: 0.5, delay: 0.35, ease: [0.16, 1, 0.3, 1] },
+            },
+              React.createElement(motion.button, {
+                className: "btn btn-primary",
+                whileHover: { scale: 1.04, y: -2 },
+                whileTap: { scale: 0.96 },
+                transition: { type: "spring", stiffness: 400, damping: 22 },
+                onClick: () => document.querySelector('.cards-section').scrollIntoView({ behavior: 'smooth' }),
+              }, "Explore demos ↓"),
+              React.createElement(motion.button, {
+                className: "btn btn-secondary",
+                whileHover: { scale: 1.04, y: -2 },
+                whileTap: { scale: 0.96 },
+                transition: { type: "spring", stiffness: 400, damping: 22 },
+              }, "View skill docs")
+            )
+          ),
+
+          // ── Feature Cards ─────────────────────────────────────────────
+          React.createElement("section", { className: "layer cards-section" },
+            React.createElement(motion.div, {
+              className: "section-label",
+              initial: { opacity: 0 },
+              whileInView: { opacity: 1 },
+              viewport: { once: true },
+            }, "What the skills enable"),
+            React.createElement(motion.h2, {
+              className: "section-title",
+              initial: { opacity: 0, y: 24 },
+              whileInView: { opacity: 1, y: 0 },
+              viewport: { once: true },
+              transition: { duration: 0.5, ease: [0.16, 1, 0.3, 1] },
+            }, "Hover every card"),
+            React.createElement("div", { className: "cards-grid" },
+              React.createElement(GlowCard, { delay: 0,    icon: "🌊", iconBg: "oklch(0.25 0.10 280)", title: "motion-framer",   desc: "Declarative animations with spring physics, variants, gestures, and AnimatePresence exit sequences." }),
+              React.createElement(GlowCard, { delay: 0.07, icon: "🎨", iconBg: "oklch(0.25 0.10 180)", title: "UI/UX Pro Max",   desc: "50+ design styles, 161 color palettes, 99 UX guidelines, and 25 chart types with searchable CLI." }),
+              React.createElement(GlowCard, { delay: 0.14, icon: "✦",  iconBg: "oklch(0.25 0.10 330)", title: "Impeccable",      desc: "23 design commands: craft, shape, audit, polish, animate, colorize, overdrive, and more." }),
+              React.createElement(GlowCard, { delay: 0.21, icon: "📐", iconBg: "oklch(0.22 0.06 40)",  title: "Layout System",   desc: "8dp spacing rhythm, responsive grids, z-index scale, and adaptive navigation patterns." }),
+              React.createElement(GlowCard, { delay: 0.28, icon: "♿", iconBg: "oklch(0.22 0.06 130)", title: "Accessibility",   desc: "4.5:1 contrast enforcement, keyboard navigation, ARIA labels, and reduced-motion support." }),
+              React.createElement(GlowCard, { delay: 0.35, icon: "⚡", iconBg: "oklch(0.22 0.08 60)",  title: "Performance",     desc: "WebP/AVIF images, CLS prevention, virtualized lists, and hardware-accelerated transforms only." }),
+            )
+          ),
+
+          // ── Spring Physics Demo ────────────────────────────────────────
+          React.createElement("section", { className: "layer springs-section" },
+            React.createElement(motion.div, {
+              className: "section-label",
+              initial: { opacity: 0 },
+              whileInView: { opacity: 1 },
+              viewport: { once: true },
+            }, "Spring presets — click to toggle"),
+            React.createElement(motion.h2, {
+              className: "section-title",
+              initial: { opacity: 0, y: 20 },
+              whileInView: { opacity: 1, y: 0 },
+              viewport: { once: true },
+              transition: { duration: 0.5, ease: [0.16, 1, 0.3, 1] },
+            }, "Physics-based motion"),
+            React.createElement("div", { className: "springs-grid" },
+              React.createElement(SpringBall, { color: "#a78bfa", label: "Gentle",  sublabel: "stiffness: 80  damping: 20",  stiffness: 80,  damping: 20 }),
+              React.createElement(SpringBall, { color: "#06b6d4", label: "Wobbly",  sublabel: "stiffness: 200 damping: 10",  stiffness: 200, damping: 10 }),
+              React.createElement(SpringBall, { color: "#10b981", label: "Stiff",   sublabel: "stiffness: 400 damping: 30",  stiffness: 400, damping: 30 }),
+              React.createElement(SpringBall, { color: "#f59e0b", label: "Bouncy",  sublabel: "stiffness: 300 damping: 8",   stiffness: 300, damping: 8  }),
+              React.createElement(SpringBall, { color: "#ec4899", label: "Slow",    sublabel: "stiffness: 50  damping: 20",  stiffness: 50,  damping: 20 }),
+            )
+          ),
+
+          // ── Drag Demo ─────────────────────────────────────────────────
+          React.createElement("section", { className: "layer drag-section" },
+            React.createElement(motion.div, {
+              className: "section-label",
+              initial: { opacity: 0 },
+              whileInView: { opacity: 1 },
+              viewport: { once: true },
+            }, "Drag interactions"),
+            React.createElement(motion.h2, {
+              className: "section-title",
+              initial: { opacity: 0, y: 20 },
+              whileInView: { opacity: 1, y: 0 },
+              viewport: { once: true },
+              transition: { duration: 0.5, ease: [0.16, 1, 0.3, 1] },
+            }, "Drag me around"),
+            React.createElement(motion.div, {
+              className: "drag-zone",
+              initial: { opacity: 0, scale: 0.97 },
+              whileInView: { opacity: 1, scale: 1 },
+              viewport: { once: true },
+              transition: { duration: 0.5, ease: [0.16, 1, 0.3, 1] },
+            },
+              React.createElement("span", { className: "drag-hint" }, "↖ drag any chip freely ↗"),
+              React.createElement(DragChip, { color: "#a78bfa", initial: { x: "10%",  y: "20%" } }, "🌊 Spring"),
+              React.createElement(DragChip, { color: "#06b6d4", initial: { x: "55%",  y: "15%" } }, "✦ Motion"),
+              React.createElement(DragChip, { color: "#ec4899", initial: { x: "25%",  y: "60%" } }, "🎨 Design"),
+              React.createElement(DragChip, { color: "#10b981", initial: { x: "65%",  y: "55%" } }, "⚡ Perf"),
+            )
+          ),
+
+          // ── Scroll Reveals ────────────────────────────────────────────
+          React.createElement("section", { className: "layer scroll-section" },
+            React.createElement(motion.div, {
+              className: "section-label",
+              initial: { opacity: 0 },
+              whileInView: { opacity: 1 },
+              viewport: { once: true },
+            }, "Scroll-triggered reveals"),
+            React.createElement(motion.h2, {
+              className: "section-title",
+              initial: { opacity: 0, y: 20 },
+              whileInView: { opacity: 1, y: 0 },
+              viewport: { once: true },
+              transition: { duration: 0.5, ease: [0.16, 1, 0.3, 1] },
+            }, "Scroll to see"),
+            React.createElement("div", { className: "scroll-items" },
+              scrollCards.map((item, i) =>
+                React.createElement(motion.div, {
+                  key: item.num,
+                  className: "scroll-item",
+                  initial: { opacity: 0, x: -40 },
+                  whileInView: { opacity: 1, x: 0 },
+                  viewport: { once: true, amount: 0.4 },
+                  transition: { duration: 0.55, delay: i * 0.08, ease: [0.16, 1, 0.3, 1] },
+                  whileHover: { x: 8 },
+                },
+                  React.createElement("div", { className: "scroll-item-num" }, item.num),
+                  React.createElement("div", null,
+                    React.createElement("h4", null, item.title),
+                    React.createElement("p", null, item.desc)
+                  )
+                )
+              )
+            )
+          ),
+
+          // ── Footer ────────────────────────────────────────────────────
+          React.createElement("footer", { className: "layer" },
+            "Built with ",
+            React.createElement("strong", null, "motion-framer"),
+            " + ",
+            React.createElement("strong", null, "Three.js"),
+            " + ",
+            React.createElement("strong", null, "UI/UX Pro Max"),
+            " + ",
+            React.createElement("strong", null, "Impeccable"),
+            " skills"
+          )
+        )
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App));
+  </script>
+</body>
+</html>
