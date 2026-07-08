@@ -62,18 +62,28 @@ ltfBuyArr = request.security_lower_tf(syminfo.tickerid, lowerTfStr, close > open
 // حجم فروش: کندل‌های داخلی نزولی
 ltfSellArr = request.security_lower_tf(syminfo.tickerid, lowerTfStr, close < open ? nz(volume) : close > open ? 0.0 : close < nz(close[1], close) ? nz(volume) : 0.0)
 
+// تیک-والیوم: وقتی نماد اصلاً دیتای volume ندارد، تعداد کندل‌های داخلی به‌عنوان حجم شمرده می‌شود
+ltfBuyTicks = request.security_lower_tf(syminfo.tickerid, lowerTfStr, close > open ? 1.0 : close < open ? 0.0 : close >= nz(close[1], close) ? 1.0 : 0.0)
+ltfSellTicks = request.security_lower_tf(syminfo.tickerid, lowerTfStr, close < open ? 1.0 : close > open ? 0.0 : close < nz(close[1], close) ? 1.0 : 0.0)
+
 intrabarBuy = ltfBuyArr.sum()
 intrabarSell = ltfSellArr.sum()
 hasIntrabarData = (intrabarBuy + intrabarSell) > 0
 
-// فال‌بک: تخمین بر اساس موقعیت close در بازه کندل (وقتی دیتای اینترابار موجود نیست — کندل‌های قدیمی)
-estimateRatio = (high - low) > 0 ? (close - low) / (high - low) : 0.5
-estimateBuy = nz(volume) * estimateRatio
-estimateSell = nz(volume) - estimateBuy
+tickBuy = ltfBuyTicks.sum()
+tickSell = ltfSellTicks.sum()
+hasTickData = (tickBuy + tickSell) > 0
 
-// سری نهایی حجم خرید و فروش هر کندل
-barBuyVolume = hasIntrabarData ? intrabarBuy : estimateBuy
-barSellVolume = hasIntrabarData ? intrabarSell : estimateSell
+// فال‌بک آخر: تخمین بر اساس موقعیت close در بازه کندل
+estimateRatio = (high - low) > 0 ? (close - low) / (high - low) : 0.5
+baseVolume = nz(volume) > 0 ? nz(volume) : (high - low) / syminfo.mintick
+estimateBuy = baseVolume * estimateRatio
+estimateSell = baseVolume - estimateBuy
+
+// سری نهایی حجم خرید و فروش هر کندل:
+// 1) حجم واقعی اینترابار  2) تیک-والیوم اینترابار  3) تخمین از بازه کندل
+barBuyVolume = hasIntrabarData ? intrabarBuy : hasTickData ? tickBuy : estimateBuy
+barSellVolume = hasIntrabarData ? intrabarSell : hasTickData ? tickSell : estimateSell
 // ====================================================================================
 
 type orderBlockInfo
