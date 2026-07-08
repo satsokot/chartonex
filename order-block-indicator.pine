@@ -305,14 +305,17 @@ findOrderBlocks () =>
             boxBtm = max[1]
             boxTop = min[1]
             boxLoc = time[1]
+            obCandleIdx = 1
 
             for i = 1 to (bar_index - top.x) - 1
                 boxBtm := math.min(min[i], boxBtm)
                 boxTop := boxBtm == min[i] ? max[i] : boxTop
                 boxLoc := boxBtm == min[i] ? time[i] : boxLoc
+                obCandleIdx := boxBtm == min[i] ? i : obCandleIdx
 
-            totalOBVolume = nz(volume) + nz(volume[1]) + nz(volume[2])
-            buyOBVolume = candleBuyVolume(0) + candleBuyVolume(1) + candleBuyVolume(2)
+            // حجم از کندل سازنده اوردر بلاک و دو کندل مجاور آن (محل انجام معاملات ناحیه)
+            totalOBVolume = nz(volume[obCandleIdx]) + nz(volume[obCandleIdx + 1]) + nz(volume[math.max(obCandleIdx - 1, 0)])
+            buyOBVolume = candleBuyVolume(obCandleIdx) + candleBuyVolume(obCandleIdx + 1) + candleBuyVolume(math.max(obCandleIdx - 1, 0))
             newOrderBlockInfo = orderBlockInfo.new(boxTop, boxBtm, totalOBVolume, "Bull", boxLoc)
             newOrderBlockInfo.obHighVolume := buyOBVolume
             newOrderBlockInfo.obLowVolume := totalOBVolume - buyOBVolume
@@ -338,14 +341,17 @@ findOrderBlocks () =>
             boxBtm = min[1]
             boxTop = max[1]
             boxLoc = time[1]
+            obCandleIdx = 1
 
             for i = 1 to (bar_index - btm.x) - 1
                 boxTop := math.max(max[i], boxTop)
                 boxBtm := boxTop == max[i] ? min[i] : boxBtm
                 boxLoc := boxTop == max[i] ? time[i] : boxLoc
+                obCandleIdx := boxTop == max[i] ? i : obCandleIdx
 
-            totalOBVolume = nz(volume) + nz(volume[1]) + nz(volume[2])
-            buyOBVolume = candleBuyVolume(0) + candleBuyVolume(1) + candleBuyVolume(2)
+            // حجم از کندل سازنده اوردر بلاک و دو کندل مجاور آن (محل انجام معاملات ناحیه)
+            totalOBVolume = nz(volume[obCandleIdx]) + nz(volume[obCandleIdx + 1]) + nz(volume[math.max(obCandleIdx - 1, 0)])
+            buyOBVolume = candleBuyVolume(obCandleIdx) + candleBuyVolume(obCandleIdx + 1) + candleBuyVolume(math.max(obCandleIdx - 1, 0))
             newOrderBlockInfo = orderBlockInfo.new(boxTop, boxBtm, totalOBVolume, "Bear", boxLoc)
             newOrderBlockInfo.obHighVolume := buyOBVolume
             newOrderBlockInfo.obLowVolume := totalOBVolume - buyOBVolume
