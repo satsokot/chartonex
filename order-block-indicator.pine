@@ -15,7 +15,6 @@ if barstate.islast
 
 OBsEnabled = true
 orderBlockVolumetricInfo = input.bool(true, "Volumetric Info", group = "General Configuration", inline="EV", display = display.none)
-obEndMethod = input.string("Wick", "Zone Invalidation", options = ["Wick", "Close"], group = "General Configuration", display = display.none)
 combineOBs = DEBUG ? input.bool(true, "Combine Zones", group = "General Configuration", display = display.none) : true
 maxATRMult = DEBUG ? input.float(3.5,"Max Atr Multiplier", group = "General Configuration") : 3.5
 swingLength = input.int(10, 'Swing Length', minval = 3, tooltip="Swing length is used when finding order block formations. Smaller values will result in finding smaller order blocks.",group = "General Configuration", display = display.none)
@@ -48,11 +47,62 @@ mirrorVolumeBars = DEBUG ? input.bool(true, "Mirror Volume Bars", group = "Style
 volumeBarsLeftSide = (volumeBarsPlace == "Left")
 extendZonesByTime = extendZonesBy * timeframe.in_seconds(timeframe.period) * 1000
 
+// ====================== Mitigation / Invalidation (ICT) ======================
+mitigationMethod = input.string("Wick", "Mitigation Method", options = ["Wick", "Close"], group = "Mitigation & Invalidation", tooltip = "لمس ناحیه: با سایه کندل یا با بدنه/کلوز")
+invalidationMethod = input.string("Wick", "Invalidation Method", options = ["Wick", "Close"], group = "Mitigation & Invalidation", tooltip = "شکست کامل ناحیه: با سایه یا با کلوز")
+deleteOnMitigation = input.bool(true, "Delete on Mitigation", group = "Mitigation & Invalidation", tooltip = "به محض رسیدن قیمت به ناحیه، اوردر بلاک حذف شود")
+deleteOnInvalidation = input.bool(true, "Delete on Invalidation", group = "Mitigation & Invalidation")
+maxMitigations = input.int(1, "Maximum Allowed Mitigations", minval = 1, group = "Mitigation & Invalidation")
+markWeakOB = input.bool(true, "Mark Weak OB (More Transparent)", group = "Mitigation & Invalidation")
+
+// ====================== ICT Filter: Liquidity Sweep ======================
+sweepEnabled = input.bool(true, "Enable Liquidity Sweep Filter", group = "ICT: Liquidity Sweep")
+sweepLookback = input.int(20, "Liquidity Lookback Length", minval = 5, group = "ICT: Liquidity Sweep")
+sweepCloseBack = input.bool(true, "Sweep Must Close Back Inside Range", group = "ICT: Liquidity Sweep")
+
+// ====================== ICT Filter: Displacement ======================
+dispEnabled = input.bool(true, "Enable Displacement Filter", group = "ICT: Displacement")
+dispATRLen = input.int(14, "ATR Length", minval = 1, group = "ICT: Displacement")
+dispATRMult = input.float(1.2, "Min Displacement ATR Multiplier", minval = 0.1, step = 0.1, group = "ICT: Displacement")
+dispMinBodyPct = input.float(50, "Min Body % of Candle Range", minval = 0, maxval = 100, group = "ICT: Displacement")
+
+// ====================== ICT Filter: BOS / MSS ======================
+bosEnabled = input.bool(true, "Enable BOS/MSS Filter", group = "ICT: BOS/MSS")
+bosMethod = input.string("Close", "BOS Confirmation By", options = ["Close", "Wick"], group = "ICT: BOS/MSS")
+// نکته: تشخیص اوردر بلاک در این اندیکاتور ذاتاً بر پایه شکست سوینگ (close > swing high) است،
+// بنابراین BOS با کلوز همیشه در لحظه ساخت برقرار است؛ این فیلتر متد تایید را کنترل می‌کند.
+
+// ====================== ICT Filter: FVG ======================
+fvgEnabled = input.bool(true, "Enable FVG Filter", group = "ICT: FVG")
+fvgMinATRMult = input.float(0.0, "Min FVG Size (ATR Multiplier)", minval = 0, step = 0.1, group = "ICT: FVG")
+fvgShowInText = input.bool(true, "Show FVG Tag in OB Text", group = "ICT: FVG")
+
+// ====================== ICT Filter: Premium / Discount ======================
+pdEnabled = input.bool(true, "Enable Premium/Discount Filter", group = "ICT: Premium/Discount")
+pdLookback = input.int(50, "Dealing Range Lookback", minval = 10, group = "ICT: Premium/Discount")
+pdMinInsidePct = input.float(50, "Min % of OB Inside Correct Zone", minval = 0, maxval = 100, group = "ICT: Premium/Discount")
+
+// ====================== ICT: Mean Threshold ======================
+showMeanLine = input.bool(true, "Show Mean Threshold Line", group = "ICT: Mean Threshold")
+meanWeaknessFilter = input.bool(false, "Use Mean Threshold as Weakness Filter", group = "ICT: Mean Threshold")
+meanInvalidationFilter = input.bool(false, "Use Mean Threshold as Invalidation Filter", group = "ICT: Mean Threshold")
+
+// ====================== ICT Filter: Volume Absorption ======================
+absEnabled = input.bool(false, "Enable Volume Absorption Filter", group = "ICT: Volume Absorption")
+absVolSMAMult = input.float(1.0, "Min Total Volume vs SMA Volume", minval = 0, step = 0.1, group = "ICT: Volume Absorption")
+absMinOppPct = input.float(40, "Min Opposite Side Volume %", minval = 0, maxval = 100, group = "ICT: Volume Absorption")
+showVolInText = input.bool(true, "Show Buy/Sell/Delta in OB Text", group = "ICT: Volume Absorption")
+
+// ====================== ICT: Quality Score ======================
+minScore = input.int(8, "Minimum Score to Display OB (0-15)", minval = 0, maxval = 15, group = "ICT: Quality Score")
+showScore = input.bool(true, "Show Score in OB Text", group = "ICT: Quality Score")
+showTags = input.bool(true, "Show Validation Tags in OB Text", group = "ICT: Quality Score")
+
 atr = ta.atr(10)
 
 // ====================== منبع دیتای حجم — روش Footprint IQ Pro ======================
 // دیتای اینترابار با request.security_lower_tf خوانده می‌شود (همان تکنیک Footprint IQ Pro [TradingIQ])
-// جهت هر کندلِ تایم‌فریم پایین با math.sign(close - open) تعیین می‌شود؛ اگر دوجی بود از تغییر قیمت استفاده می‌شود
+// مهم: این حجم خرید/فروش، bid/ask واقعی نیست؛ تخمینی است بر اساس جهت کندل‌های تایم‌فریم پایین‌تر.
 footprintGranularity = input.string("1-Minute", "Granularity (Footprint)", options = ["Auto", "1-Minute", "1-Second"], group = "Volume Data", tooltip = "دقت خواندن دیتای داخل کندل. 1-Second نیازمند پلن Premium تریدینگ‌ویو است. Auto بر اساس تایم‌فریم چارت انتخاب می‌کند.")
 
 lowerTfStr = footprintGranularity == "1-Second" ? "1S" : footprintGranularity == "1-Minute" ? "1" : timeframe.in_seconds() >= 86400 ? "30" : timeframe.in_seconds() >= 3600 ? "5" : "1"
@@ -86,6 +136,52 @@ barBuyVolume = hasIntrabarData ? intrabarBuy : hasTickData ? tickBuy : estimateB
 barSellVolume = hasIntrabarData ? intrabarSell : hasTickData ? tickSell : estimateSell
 // ====================================================================================
 
+// ====================== سری‌های سراسری فیلترهای ICT (بدون ریپینت — فقط دیتای گذشته) ======================
+atrDisp = ta.atr(dispATRLen)
+totalBarVolume = barBuyVolume + barSellVolume
+volSMA = ta.sma(totalBarVolume, 20)
+
+// --- Displacement ---
+dispBody = math.abs(close - open)
+candleRangeSize = high - low
+bullDisplacement = close > open and dispBody >= atrDisp * dispATRMult and (candleRangeSize <= 0 or dispBody >= candleRangeSize * dispMinBodyPct / 100)
+bearDisplacement = close < open and dispBody >= atrDisp * dispATRMult and (candleRangeSize <= 0 or dispBody >= candleRangeSize * dispMinBodyPct / 100)
+
+// --- Liquidity Sweep ---
+recentLowest = ta.lowest(low, sweepLookback)
+recentHighest = ta.highest(high, sweepLookback)
+priorLowRef = recentLowest[sweepLookback]
+priorHighRef = recentHighest[sweepLookback]
+bullSweepRaw = recentLowest < priorLowRef and (not sweepCloseBack or close > priorLowRef)
+bearSweepRaw = recentHighest > priorHighRef and (not sweepCloseBack or close < priorHighRef)
+var int lastBullSweepBar = na
+var int lastBearSweepBar = na
+if bullSweepRaw
+    lastBullSweepBar := bar_index
+if bearSweepRaw
+    lastBearSweepBar := bar_index
+bullSweepRecent = not na(lastBullSweepBar) and (bar_index - lastBullSweepBar) <= sweepLookback
+bearSweepRecent = not na(lastBearSweepBar) and (bar_index - lastBearSweepBar) <= sweepLookback
+
+// --- FVG (منطق کلاسیک سه‌کندلی) ---
+bullFVGRaw = low > high[2] and (low - high[2]) >= atrDisp * fvgMinATRMult
+bearFVGRaw = high < low[2] and (low[2] - high) >= atrDisp * fvgMinATRMult
+var int lastBullFVGBar = na
+var int lastBearFVGBar = na
+if bullFVGRaw
+    lastBullFVGBar := bar_index
+if bearFVGRaw
+    lastBearFVGBar := bar_index
+bullFVGRecent = not na(lastBullFVGBar) and (bar_index - lastBullFVGBar) <= 5
+bearFVGRecent = not na(lastBearFVGBar) and (bar_index - lastBearFVGBar) <= 5
+
+// --- Premium / Discount Dealing Range ---
+rangeHigh = ta.highest(high, pdLookback)
+rangeLow = ta.lowest(low, pdLookback)
+rangeMid = math.avg(rangeHigh, rangeLow)
+trendSMA = ta.sma(close, pdLookback)
+// ====================================================================================
+
 type orderBlockInfo
     float top
     float bottom
@@ -101,6 +197,12 @@ type orderBlockInfo
     bool disabled = false
     string combinedTimeframesStr = na
     bool combined = false
+    float meanThreshold = na
+    int mitigationCount = 0
+    bool inZone = false
+    int score = 0
+    string tags = ""
+    bool weak = false
 
 type orderBlock
     orderBlockInfo info
@@ -113,6 +215,7 @@ type orderBlock
     line orderBoxLineBottom = na
     line breakerBoxLineTop = na
     line breakerBoxLineBottom = na
+    line meanLine = na
     //
     box orderBoxText = na
     box orderBoxPositive = na
@@ -138,6 +241,7 @@ safeDeleteOrderBlock (orderBlock orderBlockF) =>
     line.delete(orderBlockF.orderBoxLineBottom)
     line.delete(orderBlockF.breakerBoxLineTop)
     line.delete(orderBlockF.breakerBoxLineBottom)
+    line.delete(orderBlockF.meanLine)
     line.delete(orderBlockF.orderSeperator)
     line.delete(orderBlockF.orderTextSeperator)
 
@@ -207,16 +311,8 @@ formatTimeframeString (formatTimeframe) =>
         else
             timeframeF + " Min"
 
-betterCross(s1, s2) =>
-    string ret = na
-    if s1 >= s2 and s1[1] < s2
-        ret := "Bull"
-    if s1 < s2 and s1[1] >= s2
-        ret := "Bear"
-    ret
-
 colorWithTransparency (colorF, transparencyX) =>
-    color.new(colorF, color.t(colorF) * transparencyX)
+    color.new(colorF, math.min(color.t(colorF) * transparencyX, 100))
 
 createOBBox (boxColor, transparencyX = 1.0, xlocType = xloc.bar_time) =>
     box.new(na, na, na, na, text_size = textSize, xloc = xlocType, extend = extend.none, bgcolor = colorWithTransparency(boxColor, transparencyX), text_color = textColor, text_halign = text.align_center, border_color = #00000000)
@@ -225,11 +321,13 @@ renderOrderBlock (orderBlock ob) =>
     orderBlockInfo info = ob.info
     ob.isRendered := true
     orderColor = ob.info.obType == "Bull" ? bullOrderBlockColor : bearOrderBlockColor
+    // اوردر بلاک ضعیف با شفافیت بیشتر نمایش داده می‌شود
+    mainTransparency = info.weak and markWeakOB ? 2.5 : 1.5
 
     if OBsEnabled
-        ob.orderBox := createOBBox(orderColor, 1.5)
+        ob.orderBox := createOBBox(orderColor, mainTransparency)
         if ob.info.combined
-            ob.orderBox.set_bgcolor(colorWithTransparency(orderColor, 1.1))
+            ob.orderBox.set_bgcolor(colorWithTransparency(orderColor, info.weak and markWeakOB ? 2.2 : 1.1))
         ob.orderBoxText := createOBBox(color.new(color.white, 100))
         if orderBlockVolumetricInfo
             ob.orderBoxPositive := createOBBox(bullOrderBlockColor)
@@ -237,7 +335,7 @@ renderOrderBlock (orderBlock ob) =>
             ob.orderSeperator := line.new(na,na,na,na,xloc.bar_time,extend.none,textColor,line.style_dashed,1)
             ob.orderTextSeperator := line.new(na,na,na,na,xloc.bar_time,extend.none,textColor,line.style_solid,1)
 
-        // اوردر بلاک مصرف نشده: باکس تا آخرین کندل (جایی که قیمت هنوز بهش نرسیده) ادامه پیدا می‌کند
+        // اوردر بلاک مصرف نشده: باکس دقیقاً تا کندل جاری ادامه پیدا می‌کند
         zoneSize = (time + 1) - info.startTime
 
         startX = volumeBarsLeftSide ? info.startTime : info.startTime + zoneSize - zoneSize / 3
@@ -245,6 +343,10 @@ renderOrderBlock (orderBlock ob) =>
 
         moveBox(ob.orderBox, info.startTime, info.top, info.startTime + zoneSize, info.bottom)
         moveBox(ob.orderBoxText, volumeBarsLeftSide ? maxEndX : info.startTime, info.top, volumeBarsLeftSide ? info.startTime + zoneSize : startX, info.bottom)
+
+        // خط میانگین (Mean Threshold — سطح 50% اوردر بلاک)
+        if showMeanLine and not na(info.meanThreshold)
+            ob.meanLine := line.new(info.startTime, info.meanThreshold, info.startTime + zoneSize, info.meanThreshold, xloc.bar_time, extend.none, textColor, line.style_dotted, 1)
 
         // ====================== حجم خرید/فروش و دلتا ======================
         buyVolume = nz(info.obHighVolume)
@@ -255,23 +357,23 @@ renderOrderBlock (orderBlock ob) =>
 
         percentage = totalVolume > 0 ? int((math.min(buyVolume, sellVolume) / math.max(math.max(buyVolume, sellVolume), 1)) * 100.0) : 0
 
-        // سهم هر طرف از کل حجم (0 تا 1) برای تعیین پررنگی/کمرنگی
         buyShare = totalVolume > 0 ? buyVolume / totalVolume : 0.5
         sellShare = totalVolume > 0 ? sellVolume / totalVolume : 0.5
-        // هر چه سهم بیشتر، رنگ پررنگ‌تر (شفافیت کمتر)
         buyTransparency = int(100 - buyShare * 100)
         sellTransparency = int(100 - sellShare * 100)
         // =====================================================================
 
-        // ====================== متن کامل (حجم + فارسی + تایم‌فریم + دلتا) ======================
+        // ====================== متن کامل (حجم + دلتا + امتیاز + تگ‌ها) ======================
         persianText = ob.info.obType == "Bull" ? "ناحیه مناسب خرید" : "ناحیه مناسب فروش"
         timeframeLabel = na(ob.info.combinedTimeframesStr) ? formatTimeframeString(ob.info.timeframeStr) : ob.info.combinedTimeframesStr
 
-        volumePart = orderBlockVolumetricInfo ? str.tostring(nz(ob.info.obVolume), format.volume) + " (" + str.tostring(percentage) + "%)\n" : ""
-        deltaPart = orderBlockVolumetricInfo ? "دلتا: " + deltaText + "\n" : ""
+        volumePart = orderBlockVolumetricInfo and showVolInText ? str.tostring(nz(ob.info.obVolume), format.volume) + " (" + str.tostring(percentage) + "%)\n" : ""
+        deltaPart = orderBlockVolumetricInfo and showVolInText ? "دلتا: " + deltaText + "\n" : ""
+        scorePart = showScore ? "امتیاز: " + str.tostring(info.score) + "/15\n" : ""
+        tagsPart = showTags and str.length(info.tags) > 0 ? info.tags + "\n" : ""
         combinedPart = (combinedText and ob.info.combined) ? "[Combined]\n" : ""
 
-        finalText = volumePart + deltaPart + persianText + "\n" + timeframeLabel + combinedPart
+        finalText = volumePart + deltaPart + scorePart + persianText + "\n" + timeframeLabel + "\n" + tagsPart + combinedPart
         box.set_text(ob.orderBoxText, finalText)
         // =======================================================================
 
@@ -313,32 +415,77 @@ findOBSwings(len) =>
 
     [top, bottom]
 
-// حجم خریدار یک کندل از منبع انتخابی (فوت‌پرینت/اینترابار، تخمین، یا اندیکاتور خارجی)
+// حجم خریدار/فروشنده یک کندل از منبع انتخابی (فوت‌پرینت/اینترابار، تیک، یا تخمین)
 candleBuyVolume (i) =>
     nz(barBuyVolume[i])
 
 candleSellVolume (i) =>
     nz(barSellVolume[i])
 
+// ساخت رشته تگ‌های اعتبارسنجی ICT
+buildTags (sweepOK, dispOK, bosOK, fvgOK, pdOK, absOK, isBull) =>
+    string tags = ""
+    if showTags
+        tags += sweepOK ? "Sweep ✓ " : ""
+        tags += dispOK ? "Displacement ✓ " : ""
+        tags += bosOK ? "BOS ✓ " : ""
+        tags += fvgOK and fvgShowInText ? "FVG ✓ " : ""
+        tags += pdOK ? (isBull ? "Discount ✓ " : "Premium ✓ ") : ""
+        tags += absOK ? "Absorption ✓" : ""
+    tags
+
 findOrderBlocks () =>
-    if bar_index > last_bar_index - maxDistanceToLastBar
+    // فقط روی کندل تاییدشده کار می‌کند تا ریپینت نشود
+    if bar_index > last_bar_index - maxDistanceToLastBar and barstate.isconfirmed
         [top, btm] = findOBSwings(swingLength)
         useBody = false
         max = useBody ? math.max(close, open) : high
         min = useBody ? math.min(close, open) : low
 
-        // Bullish Order Block
-        // وقتی قیمت به اوردر بلاک برسد (مصرف شود)، بلافاصله حذف می‌شود
+        // ================= مدیریت اوردر بلاک‌های صعودی (Mitigation / Invalidation) =================
         if bullishOrderBlocksList.size() > 0
             for i = bullishOrderBlocksList.size() - 1 to 0
                 currentOB = bullishOrderBlocksList.get(i)
+                removed = false
 
-                if (obEndMethod == "Wick" ? low : math.min(open, close)) <= currentOB.top
-                    bullishOrderBlocksList.remove(i)
+                // Invalidation: شکست کامل کف ناحیه
+                invBreak = (invalidationMethod == "Wick" ? low : math.min(open, close)) < currentOB.bottom
+                if invBreak
+                    if deleteOnInvalidation
+                        bullishOrderBlocksList.remove(i)
+                        removed := true
+                    else
+                        currentOB.weak := true
 
+                if not removed
+                    // Mean Threshold به عنوان فیلتر ضعف/ابطال
+                    if not na(currentOB.meanThreshold) and close < currentOB.meanThreshold
+                        if meanInvalidationFilter
+                            bullishOrderBlocksList.remove(i)
+                            removed := true
+                        else if meanWeaknessFilter
+                            currentOB.weak := true
+
+                if not removed
+                    // Mitigation: رسیدن قیمت به ناحیه
+                    mitTouch = (mitigationMethod == "Wick" ? low : math.min(open, close)) <= currentOB.top
+                    if mitTouch
+                        if not currentOB.inZone
+                            currentOB.mitigationCount += 1
+                            currentOB.inZone := true
+                        if deleteOnMitigation or currentOB.mitigationCount > maxMitigations
+                            bullishOrderBlocksList.remove(i)
+                            removed := true
+                        else
+                            currentOB.weak := true
+                    else
+                        currentOB.inZone := false
+
+        // ================= ساخت اوردر بلاک صعودی جدید با فیلترهای ICT =================
         if close > top.y and not top.crossed
             top.crossed := true
 
+            // کاندیدا: پایین‌ترین کندل ناحیه مبدا قبل از حرکت (منطق ICT: آخرین کندل نزولی/پایین‌ترین کندل قبل از دیسپلیسمنت)
             boxBtm = max[1]
             boxTop = min[1]
             boxLoc = time[1]
@@ -350,32 +497,109 @@ findOrderBlocks () =>
                 boxLoc := boxBtm == min[i] ? time[i] : boxLoc
                 obCandleIdx := boxBtm == min[i] ? i : obCandleIdx
 
-            // حجم فوت‌پرینت از کندل سازنده اوردر بلاک و دو کندل مجاور آن (محل انجام معاملات ناحیه)
+            // حجم فوت‌پرینت از کندل سازنده اوردر بلاک و دو کندل مجاور آن
             buyOBVolume = candleBuyVolume(obCandleIdx) + candleBuyVolume(obCandleIdx + 1) + candleBuyVolume(math.max(obCandleIdx - 1, 0))
             sellOBVolume = candleSellVolume(obCandleIdx) + candleSellVolume(obCandleIdx + 1) + candleSellVolume(math.max(obCandleIdx - 1, 0))
             totalOBVolume = buyOBVolume + sellOBVolume
-            newOrderBlockInfo = orderBlockInfo.new(boxTop, boxBtm, totalOBVolume, "Bull", boxLoc)
-            newOrderBlockInfo.obHighVolume := buyOBVolume
-            newOrderBlockInfo.obLowVolume := sellOBVolume
 
-            obSize = math.abs(newOrderBlockInfo.top - newOrderBlockInfo.bottom)
-            if obSize <= atr * maxATRMult
+            obSize = math.abs(boxTop - boxBtm)
+            sizeOK = obSize > 0 and obSize <= atr * maxATRMult
+
+            // ---------- فیلترهای ICT ----------
+            // 1) Liquidity Sweep: قبل از OB صعودی باید نقدینگی فروش (کف اخیر) جمع شده باشد
+            sweepOK = bullSweepRecent
+            // 2) Displacement: حرکت صعودی قوی (کندل فعلی یا کندل قبل)
+            dispOK = bullDisplacement or bullDisplacement[1]
+            // 3) BOS/MSS: شکست سوینگ‌های معتبر (ذاتی این تشخیص؛ متد تایید قابل انتخاب)
+            bosOK = bosMethod == "Close" ? close > top.y : high > top.y
+            // 4) FVG: گپ ارزش منصفانه صعودی حاصل از دیسپلیسمنت (در چند کندل اخیر)
+            fvgOK = bullFVGRecent
+            // 5) Premium/Discount: OB صعودی ترجیحاً در ناحیه Discount (زیر 50% رنج معاملاتی)
+            insideDiscountPct = boxTop <= rangeMid ? 100.0 : boxBtm >= rangeMid ? 0.0 : (rangeMid - boxBtm) / math.max(boxTop - boxBtm, syminfo.mintick) * 100.0
+            pdOK = insideDiscountPct >= pdMinInsidePct
+            // 8) Volume Absorption: حجم فروش بالا داخل ناحیه ولی قیمت پایین‌تر نرفته و دیسپلیسمنت صعودی آمده
+            sellPct = totalOBVolume > 0 ? sellOBVolume / totalOBVolume * 100.0 : 0.0
+            absOK = totalOBVolume >= nz(volSMA) * absVolSMAMult and sellPct >= absMinOppPct
+            // ساختار/HTF: قیمت بالای میانگین رنج (هم‌جهتی با ساختار صعودی)
+            structOK = close > trendSMA
+
+            // ---------- امتیازدهی 0 تا 15 ----------
+            score = 0
+            score += structOK ? 2 : 0
+            score += sweepOK ? 2 : 0
+            score += dispOK ? 2 : 0
+            score += bosOK ? 2 : 0
+            score += fvgOK ? 2 : 0
+            score += pdOK ? 2 : 0
+            score += 1 // بدون میتیگیشن (تازه ساخته شده)
+            score += absOK ? 1 : 0
+            score += sizeOK ? 1 : 0
+
+            // ---------- گذر از فیلترهای فعال ----------
+            passed = sizeOK
+            passed := passed and (not sweepEnabled or sweepOK)
+            passed := passed and (not dispEnabled or dispOK)
+            passed := passed and (not bosEnabled or bosOK)
+            passed := passed and (not fvgEnabled or fvgOK)
+            passed := passed and (not pdEnabled or pdOK)
+            passed := passed and (not absEnabled or absOK)
+            passed := passed and score >= minScore
+
+            if passed
+                newOrderBlockInfo = orderBlockInfo.new(boxTop, boxBtm, totalOBVolume, "Bull", boxLoc)
+                newOrderBlockInfo.obHighVolume := buyOBVolume
+                newOrderBlockInfo.obLowVolume := sellOBVolume
+                newOrderBlockInfo.meanThreshold := (boxTop + boxBtm) / 2
+                newOrderBlockInfo.score := score
+                newOrderBlockInfo.tags := buildTags(sweepOK, dispOK, bosOK, fvgOK, pdOK, absOK, true)
+
                 bullishOrderBlocksList.unshift(newOrderBlockInfo)
                 if bullishOrderBlocksList.size() > maxOrderBlocks
                     bullishOrderBlocksList.pop()
 
-        // Bearish Order Block
-        // وقتی قیمت به اوردر بلاک برسد (مصرف شود)، بلافاصله حذف می‌شود
+        // ================= مدیریت اوردر بلاک‌های نزولی (Mitigation / Invalidation) =================
         if bearishOrderBlocksList.size() > 0
             for i = bearishOrderBlocksList.size() - 1 to 0
                 currentOB = bearishOrderBlocksList.get(i)
+                removed = false
 
-                if (obEndMethod == "Wick" ? high : math.max(open, close)) >= currentOB.bottom
-                    bearishOrderBlocksList.remove(i)
+                // Invalidation: شکست کامل سقف ناحیه
+                invBreak = (invalidationMethod == "Wick" ? high : math.max(open, close)) > currentOB.top
+                if invBreak
+                    if deleteOnInvalidation
+                        bearishOrderBlocksList.remove(i)
+                        removed := true
+                    else
+                        currentOB.weak := true
 
+                if not removed
+                    if not na(currentOB.meanThreshold) and close > currentOB.meanThreshold
+                        if meanInvalidationFilter
+                            bearishOrderBlocksList.remove(i)
+                            removed := true
+                        else if meanWeaknessFilter
+                            currentOB.weak := true
+
+                if not removed
+                    // Mitigation: رسیدن قیمت به ناحیه
+                    mitTouch = (mitigationMethod == "Wick" ? high : math.max(open, close)) >= currentOB.bottom
+                    if mitTouch
+                        if not currentOB.inZone
+                            currentOB.mitigationCount += 1
+                            currentOB.inZone := true
+                        if deleteOnMitigation or currentOB.mitigationCount > maxMitigations
+                            bearishOrderBlocksList.remove(i)
+                            removed := true
+                        else
+                            currentOB.weak := true
+                    else
+                        currentOB.inZone := false
+
+        // ================= ساخت اوردر بلاک نزولی جدید با فیلترهای ICT =================
         if close < btm.y and not btm.crossed
             btm.crossed := true
 
+            // کاندیدا: بالاترین کندل ناحیه مبدا قبل از حرکت نزولی
             boxBtm = min[1]
             boxTop = max[1]
             boxLoc = time[1]
@@ -387,16 +611,59 @@ findOrderBlocks () =>
                 boxLoc := boxTop == max[i] ? time[i] : boxLoc
                 obCandleIdx := boxTop == max[i] ? i : obCandleIdx
 
-            // حجم فوت‌پرینت از کندل سازنده اوردر بلاک و دو کندل مجاور آن (محل انجام معاملات ناحیه)
             buyOBVolume = candleBuyVolume(obCandleIdx) + candleBuyVolume(obCandleIdx + 1) + candleBuyVolume(math.max(obCandleIdx - 1, 0))
             sellOBVolume = candleSellVolume(obCandleIdx) + candleSellVolume(obCandleIdx + 1) + candleSellVolume(math.max(obCandleIdx - 1, 0))
             totalOBVolume = buyOBVolume + sellOBVolume
-            newOrderBlockInfo = orderBlockInfo.new(boxTop, boxBtm, totalOBVolume, "Bear", boxLoc)
-            newOrderBlockInfo.obHighVolume := buyOBVolume
-            newOrderBlockInfo.obLowVolume := sellOBVolume
 
-            obSize = math.abs(newOrderBlockInfo.top - newOrderBlockInfo.bottom)
-            if obSize <= atr * maxATRMult
+            obSize = math.abs(boxTop - boxBtm)
+            sizeOK = obSize > 0 and obSize <= atr * maxATRMult
+
+            // ---------- فیلترهای ICT ----------
+            // 1) Liquidity Sweep: قبل از OB نزولی باید نقدینگی خرید (سقف اخیر) جمع شده باشد
+            sweepOK = bearSweepRecent
+            // 2) Displacement نزولی
+            dispOK = bearDisplacement or bearDisplacement[1]
+            // 3) BOS/MSS
+            bosOK = bosMethod == "Close" ? close < btm.y : low < btm.y
+            // 4) FVG نزولی
+            fvgOK = bearFVGRecent
+            // 5) Premium: OB نزولی ترجیحاً بالای 50% رنج
+            insidePremiumPct = boxBtm >= rangeMid ? 100.0 : boxTop <= rangeMid ? 0.0 : (boxTop - rangeMid) / math.max(boxTop - boxBtm, syminfo.mintick) * 100.0
+            pdOK = insidePremiumPct >= pdMinInsidePct
+            // 8) Absorption: حجم خرید بالا داخل ناحیه ولی ادامه صعود شکست خورده
+            buyPct = totalOBVolume > 0 ? buyOBVolume / totalOBVolume * 100.0 : 0.0
+            absOK = totalOBVolume >= nz(volSMA) * absVolSMAMult and buyPct >= absMinOppPct
+            structOK = close < trendSMA
+
+            // ---------- امتیازدهی 0 تا 15 ----------
+            score = 0
+            score += structOK ? 2 : 0
+            score += sweepOK ? 2 : 0
+            score += dispOK ? 2 : 0
+            score += bosOK ? 2 : 0
+            score += fvgOK ? 2 : 0
+            score += pdOK ? 2 : 0
+            score += 1
+            score += absOK ? 1 : 0
+            score += sizeOK ? 1 : 0
+
+            passed = sizeOK
+            passed := passed and (not sweepEnabled or sweepOK)
+            passed := passed and (not dispEnabled or dispOK)
+            passed := passed and (not bosEnabled or bosOK)
+            passed := passed and (not fvgEnabled or fvgOK)
+            passed := passed and (not pdEnabled or pdOK)
+            passed := passed and (not absEnabled or absOK)
+            passed := passed and score >= minScore
+
+            if passed
+                newOrderBlockInfo = orderBlockInfo.new(boxTop, boxBtm, totalOBVolume, "Bear", boxLoc)
+                newOrderBlockInfo.obHighVolume := buyOBVolume
+                newOrderBlockInfo.obLowVolume := sellOBVolume
+                newOrderBlockInfo.meanThreshold := (boxTop + boxBtm) / 2
+                newOrderBlockInfo.score := score
+                newOrderBlockInfo.tags := buildTags(sweepOK, dispOK, bosOK, fvgOK, pdOK, absOK, false)
+
                 bearishOrderBlocksList.unshift(newOrderBlockInfo)
                 if bearishOrderBlocksList.size() > maxOrderBlocks
                     bearishOrderBlocksList.pop()
@@ -467,6 +734,12 @@ combineOBsFunc () =>
                         newOB.info.obHighVolume := curOB1.info.obHighVolume + curOB2.info.obHighVolume
                         newOB.info.bbVolume := nz(curOB1.info.bbVolume, 0) + nz(curOB2.info.bbVolume, 0)
                         newOB.info.breaker := curOB1.info.breaker or curOB2.info.breaker
+
+                        newOB.info.meanThreshold := (newOB.info.top + newOB.info.bottom) / 2
+                        newOB.info.score := math.max(curOB1.info.score, curOB2.info.score)
+                        newOB.info.tags := str.length(curOB1.info.tags) >= str.length(curOB2.info.tags) ? curOB1.info.tags : curOB2.info.tags
+                        newOB.info.mitigationCount := math.max(curOB1.info.mitigationCount, curOB2.info.mitigationCount)
+                        newOB.info.weak := curOB1.info.weak and curOB2.info.weak
 
                         newOB.info.combined := true
                         if timeframe.in_seconds(curOB1.info.timeframeStr) != timeframe.in_seconds(curOB2.info.timeframeStr)
