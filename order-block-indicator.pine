@@ -116,12 +116,12 @@ ltfSellArr = request.security_lower_tf(syminfo.tickerid, lowerTfStr, close < ope
 ltfBuyTicks = request.security_lower_tf(syminfo.tickerid, lowerTfStr, close > open ? 1.0 : close < open ? 0.0 : close >= nz(close[1], close) ? 1.0 : 0.0)
 ltfSellTicks = request.security_lower_tf(syminfo.tickerid, lowerTfStr, close < open ? 1.0 : close > open ? 0.0 : close < nz(close[1], close) ? 1.0 : 0.0)
 
-intrabarBuy = ltfBuyArr.sum()
-intrabarSell = ltfSellArr.sum()
+intrabarBuy = ltfBuyArr.size() > 0 ? nz(ltfBuyArr.sum()) : 0.0
+intrabarSell = ltfSellArr.size() > 0 ? nz(ltfSellArr.sum()) : 0.0
 hasIntrabarData = (intrabarBuy + intrabarSell) > 0
 
-tickBuy = ltfBuyTicks.sum()
-tickSell = ltfSellTicks.sum()
+tickBuy = ltfBuyTicks.size() > 0 ? nz(ltfBuyTicks.sum()) : 0.0
+tickSell = ltfSellTicks.size() > 0 ? nz(ltfSellTicks.sum()) : 0.0
 hasTickData = (tickBuy + tickSell) > 0
 
 // فال‌بک آخر: تخمین بر اساس موقعیت close در بازه کندل
@@ -435,9 +435,10 @@ buildTags (sweepOK, dispOK, bosOK, fvgOK, pdOK, absOK, isBull) =>
     tags
 
 findOrderBlocks () =>
+    // توابع ta.* باید در هر کندل اجرا شوند؛ بنابراین سوینگ‌ها بیرون از شرط محاسبه می‌شوند
+    [top, btm] = findOBSwings(swingLength)
     // فقط روی کندل تاییدشده کار می‌کند تا ریپینت نشود
     if bar_index > last_bar_index - maxDistanceToLastBar and barstate.isconfirmed
-        [top, btm] = findOBSwings(swingLength)
         useBody = false
         max = useBody ? math.max(close, open) : high
         min = useBody ? math.min(close, open) : low
