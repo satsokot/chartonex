@@ -536,13 +536,6 @@ findOrderBlocks () =>
         if close > top.y and not top.crossed
             top.crossed := true
 
-            // رسم BOS / CHoCH (MSS) صعودی در محل شکست سوینگ
-            if showStructure
-                bullIsChoch = structDirHolder.get(0) == -1
-                structDirHolder.set(0, 1)
-                pushLineCapped(structLines, line.new(top.x, top.y, bar_index, top.y, xloc.bar_index, extend.none, bullOrderBlockColor, line.style_solid, 1), maxStructDrawings)
-                pushLabelCapped(structLabels, label.new(bar_index, top.y, bullIsChoch ? "CHoCH (MSS)" : "BOS", xloc.bar_index, yloc.price, #00000000, label.style_label_down, structLabelColor, size.small), maxStructDrawings)
-
             // کاندیدا: پایین‌ترین کندل ناحیه مبدا قبل از حرکت (منطق ICT: آخرین کندل نزولی/پایین‌ترین کندل قبل از دیسپلیسمنت)
             boxBtm = max[1]
             boxTop = min[1]
@@ -656,13 +649,6 @@ findOrderBlocks () =>
         // ================= ساخت اوردر بلاک نزولی جدید با فیلترهای ICT =================
         if close < btm.y and not btm.crossed
             btm.crossed := true
-
-            // رسم BOS / CHoCH (MSS) نزولی در محل شکست سوینگ
-            if showStructure
-                bearIsChoch = structDirHolder.get(0) == 1
-                structDirHolder.set(0, -1)
-                pushLineCapped(structLines, line.new(btm.x, btm.y, bar_index, btm.y, xloc.bar_index, extend.none, bearOrderBlockColor, line.style_solid, 1), maxStructDrawings)
-                pushLabelCapped(structLabels, label.new(bar_index, btm.y, bearIsChoch ? "CHoCH (MSS)" : "BOS", xloc.bar_index, yloc.price, #00000000, label.style_label_up, structLabelColor, size.small), maxStructDrawings)
 
             // کاندیدا: بالاترین کندل ناحیه مبدا قبل از حرکت نزولی
             boxBtm = min[1]
@@ -864,6 +850,28 @@ handleOrderBlocksFinal () =>
             curOB = allOrderBlocksList.get(i)
             if isOBValid(curOB.info)
                 renderOrderBlock(curOB)
+
+// ====================== رسم BOS / CHoCH (MSS) در اسکوپ سراسری ======================
+// نکته: رسم نباید داخل findOrderBlocks باشد چون خروجی آن به request.security پاس می‌شود.
+// این فراخوانی findOBSwings نمونه state جداگانه خودش را دارد و مستقل عمل می‌کند.
+[structTop, structBtm] = findOBSwings(swingLength)
+
+if barstate.isconfirmed and close > structTop.y and not structTop.crossed
+    structTop.crossed := true
+    if showStructure
+        bullIsChoch = structDirHolder.get(0) == -1
+        structDirHolder.set(0, 1)
+        pushLineCapped(structLines, line.new(structTop.x, structTop.y, bar_index, structTop.y, xloc.bar_index, extend.none, bullOrderBlockColor, line.style_solid, 1), maxStructDrawings)
+        pushLabelCapped(structLabels, label.new(bar_index, structTop.y, bullIsChoch ? "CHoCH (MSS)" : "BOS", xloc.bar_index, yloc.price, #00000000, label.style_label_down, structLabelColor, size.small), maxStructDrawings)
+
+if barstate.isconfirmed and close < structBtm.y and not structBtm.crossed
+    structBtm.crossed := true
+    if showStructure
+        bearIsChoch = structDirHolder.get(0) == 1
+        structDirHolder.set(0, -1)
+        pushLineCapped(structLines, line.new(structBtm.x, structBtm.y, bar_index, structBtm.y, xloc.bar_index, extend.none, bearOrderBlockColor, line.style_solid, 1), maxStructDrawings)
+        pushLabelCapped(structLabels, label.new(bar_index, structBtm.y, bearIsChoch ? "CHoCH (MSS)" : "BOS", xloc.bar_index, yloc.price, #00000000, label.style_label_up, structLabelColor, size.small), maxStructDrawings)
+// ====================================================================================
 
 findOrderBlocks()
 
