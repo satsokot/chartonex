@@ -50,6 +50,32 @@ extendZonesByTime = extendZonesBy * timeframe.in_seconds(timeframe.period) * 100
 
 atr = ta.atr(10)
 
+// ====================== منبع دیتای حجم — روش Footprint IQ Pro ======================
+// دیتای اینترابار با request.security_lower_tf خوانده می‌شود (همان تکنیک Footprint IQ Pro [TradingIQ])
+// جهت هر کندلِ تایم‌فریم پایین با math.sign(close - open) تعیین می‌شود؛ اگر دوجی بود از تغییر قیمت استفاده می‌شود
+footprintGranularity = input.string("1-Minute", "Granularity (Footprint)", options = ["Auto", "1-Minute", "1-Second"], group = "Volume Data", tooltip = "دقت خواندن دیتای داخل کندل. 1-Second نیازمند پلن Premium تریدینگ‌ویو است. Auto بر اساس تایم‌فریم چارت انتخاب می‌کند.")
+
+lowerTfStr = footprintGranularity == "1-Second" ? "1S" : footprintGranularity == "1-Minute" ? "1" : timeframe.in_seconds() >= 86400 ? "30" : timeframe.in_seconds() >= 3600 ? "5" : "1"
+
+// حجم خرید: کندل‌های داخلی صعودی (و در دوجی، بر اساس جهت تغییر قیمت)
+ltfBuyArr = request.security_lower_tf(syminfo.tickerid, lowerTfStr, close > open ? nz(volume) : close < open ? 0.0 : close >= nz(close[1], close) ? nz(volume) : 0.0)
+// حجم فروش: کندل‌های داخلی نزولی
+ltfSellArr = request.security_lower_tf(syminfo.tickerid, lowerTfStr, close < open ? nz(volume) : close > open ? 0.0 : close < nz(close[1], close) ? nz(volume) : 0.0)
+
+intrabarBuy = ltfBuyArr.sum()
+intrabarSell = ltfSellArr.sum()
+hasIntrabarData = (intrabarBuy + intrabarSell) > 0
+
+// فال‌بک: تخمین بر اساس موقعیت close در بازه کندل (وقتی دیتای اینترابار موجود نیست — کندل‌های قدیمی)
+estimateRatio = (high - low) > 0 ? (close - low) / (high - low) : 0.5
+estimateBuy = nz(volume) * estimateRatio
+estimateSell = nz(volume) - estimateBuy
+
+// سری نهایی حجم خرید و فروش هر کندل
+barBuyVolume = hasIntrabarData ? intrabarBuy : estimateBuy
+barSellVolume = hasIntrabarData ? intrabarSell : estimateSell
+// ====================================================================================
+
 type orderBlockInfo
     float top
     float bottom
@@ -277,11 +303,12 @@ findOBSwings(len) =>
 
     [top, bottom]
 
-// تخمین حجم خریدار یک کندل بر اساس موقعیت close نسبت به high/low
+// حجم خریدار یک کندل از منبع انتخابی (فوت‌پرینت/اینترابار، تخمین، یا اندیکاتور خارجی)
 candleBuyVolume (i) =>
-    candleRange = high[i] - low[i]
-    ratio = candleRange > 0 ? (close[i] - low[i]) / candleRange : 0.5
-    nz(volume[i]) * ratio
+    nz(barBuyVolume[i])
+
+candleSellVolume (i) =>
+    nz(barSellVolume[i])
 
 findOrderBlocks () =>
     if bar_index > last_bar_index - maxDistanceToLastBar
@@ -313,12 +340,13 @@ findOrderBlocks () =>
                 boxLoc := boxBtm == min[i] ? time[i] : boxLoc
                 obCandleIdx := boxBtm == min[i] ? i : obCandleIdx
 
-            // حجم از کندل سازنده اوردر بلاک و دو کندل مجاور آن (محل انجام معاملات ناحیه)
-            totalOBVolume = nz(volume[obCandleIdx]) + nz(volume[obCandleIdx + 1]) + nz(volume[math.max(obCandleIdx - 1, 0)])
+            // حجم فوت‌پرینت از کندل سازنده اوردر بلاک و دو کندل مجاور آن (محل انجام معاملات ناحیه)
             buyOBVolume = candleBuyVolume(obCandleIdx) + candleBuyVolume(obCandleIdx + 1) + candleBuyVolume(math.max(obCandleIdx - 1, 0))
+            sellOBVolume = candleSellVolume(obCandleIdx) + candleSellVolume(obCandleIdx + 1) + candleSellVolume(math.max(obCandleIdx - 1, 0))
+            totalOBVolume = buyOBVolume + sellOBVolume
             newOrderBlockInfo = orderBlockInfo.new(boxTop, boxBtm, totalOBVolume, "Bull", boxLoc)
             newOrderBlockInfo.obHighVolume := buyOBVolume
-            newOrderBlockInfo.obLowVolume := totalOBVolume - buyOBVolume
+            newOrderBlockInfo.obLowVolume := sellOBVolume
 
             obSize = math.abs(newOrderBlockInfo.top - newOrderBlockInfo.bottom)
             if obSize <= atr * maxATRMult
@@ -349,12 +377,13 @@ findOrderBlocks () =>
                 boxLoc := boxTop == max[i] ? time[i] : boxLoc
                 obCandleIdx := boxTop == max[i] ? i : obCandleIdx
 
-            // حجم از کندل سازنده اوردر بلاک و دو کندل مجاور آن (محل انجام معاملات ناحیه)
-            totalOBVolume = nz(volume[obCandleIdx]) + nz(volume[obCandleIdx + 1]) + nz(volume[math.max(obCandleIdx - 1, 0)])
+            // حجم فوت‌پرینت از کندل سازنده اوردر بلاک و دو کندل مجاور آن (محل انجام معاملات ناحیه)
             buyOBVolume = candleBuyVolume(obCandleIdx) + candleBuyVolume(obCandleIdx + 1) + candleBuyVolume(math.max(obCandleIdx - 1, 0))
+            sellOBVolume = candleSellVolume(obCandleIdx) + candleSellVolume(obCandleIdx + 1) + candleSellVolume(math.max(obCandleIdx - 1, 0))
+            totalOBVolume = buyOBVolume + sellOBVolume
             newOrderBlockInfo = orderBlockInfo.new(boxTop, boxBtm, totalOBVolume, "Bear", boxLoc)
             newOrderBlockInfo.obHighVolume := buyOBVolume
-            newOrderBlockInfo.obLowVolume := totalOBVolume - buyOBVolume
+            newOrderBlockInfo.obLowVolume := sellOBVolume
 
             obSize = math.abs(newOrderBlockInfo.top - newOrderBlockInfo.bottom)
             if obSize <= atr * maxATRMult
