@@ -32,8 +32,11 @@ bearishOrderBlocks = zoneCount == "One" ? 1 : zoneCount == "Low" ? 3 : zoneCount
 timeframe1Enabled = true
 timeframe1 = ""
 
-// ====================== رنگ متن ======================
+// ====================== رنگ و سایز متن ======================
 textColor = input.color(#000000, "Text Color", group = "Style")
+volumeTextColor = input.color(#000000, "Volume Text Color", group = "Style")
+textSizeOption = input.string("Normal", "Text Size", options = ["Tiny", "Small", "Normal", "Large", "Huge"], group = "Style")
+textSize = textSizeOption == "Tiny" ? size.tiny : textSizeOption == "Small" ? size.small : textSizeOption == "Normal" ? size.normal : textSizeOption == "Large" ? size.large : size.huge
 // =======================================================
 
 extendZonesBy = DEBUG ? input.int(15, "Extend Zones", group = "Style", minval = 1, maxval = 30, inline = "ExtendZones") : 15
@@ -180,7 +183,7 @@ colorWithTransparency (colorF, transparencyX) =>
     color.new(colorF, color.t(colorF) * transparencyX)
 
 createOBBox (boxColor, transparencyX = 1.0, xlocType = xloc.bar_time) =>
-    box.new(na, na, na, na, text_size = size.normal, xloc = xlocType, extend = extend.none, bgcolor = colorWithTransparency(boxColor, transparencyX), text_color = textColor, text_halign = text.align_center, border_color = #00000000)
+    box.new(na, na, na, na, text_size = textSize, xloc = xlocType, extend = extend.none, bgcolor = colorWithTransparency(boxColor, transparencyX), text_color = textColor, text_halign = text.align_center, border_color = #00000000)
 
 renderOrderBlock (orderBlock ob) =>
     orderBlockInfo info = ob.info
@@ -209,28 +212,45 @@ renderOrderBlock (orderBlock ob) =>
 
         percentage = int((math.min(info.obHighVolume, info.obLowVolume) / math.max(info.obHighVolume, info.obLowVolume)) * 100.0)
 
-        // ====================== متن کامل (حجم + فارسی + تایم‌فریم) ======================
+        // ====================== حجم خرید/فروش و دلتا ======================
+        buyVolume = info.obHighVolume
+        sellVolume = info.obLowVolume
+        delta = buyVolume - sellVolume
+        deltaText = (delta >= 0 ? "+" : "") + str.tostring(delta, format.volume)
+
+        // سهم هر طرف از کل حجم (0 تا 1) برای تعیین پررنگی/کمرنگی
+        buyShare = buyVolume / (buyVolume + sellVolume)
+        sellShare = sellVolume / (buyVolume + sellVolume)
+        // هر چه سهم بیشتر، رنگ پررنگ‌تر (شفافیت کمتر)
+        buyTransparency = int(100 - buyShare * 100)
+        sellTransparency = int(100 - sellShare * 100)
+        // =====================================================================
+
+        // ====================== متن کامل (حجم + فارسی + تایم‌فریم + دلتا) ======================
         persianText = ob.info.obType == "Bull" ? "ناحیه مناسب خرید" : "ناحیه مناسب فروش"
         timeframeLabel = na(ob.info.combinedTimeframesStr) ? formatTimeframeString(ob.info.timeframeStr) : ob.info.combinedTimeframesStr
 
         volumePart = orderBlockVolumetricInfo ? str.tostring(ob.info.obVolume, format.volume) + " (" + str.tostring(percentage) + "%)\n" : ""
+        deltaPart = orderBlockVolumetricInfo ? "دلتا: " + deltaText + "\n" : ""
         combinedPart = (combinedText and ob.info.combined) ? "[Combined]\n" : ""
 
-        finalText = volumePart + persianText + "\n" + timeframeLabel + combinedPart
+        finalText = volumePart + deltaPart + persianText + "\n" + timeframeLabel + combinedPart
         box.set_text(ob.orderBoxText, finalText)
         // =======================================================================
 
         if orderBlockVolumetricInfo
-            showHighLowBoxText = false
-
             curEndXHigh = int(math.ceil((info.obHighVolume / info.obVolume) * (maxEndX - startX) + startX))
             curEndXLow = int(math.ceil((info.obLowVolume / info.obVolume) * (maxEndX - startX) + startX))
 
             moveBox(ob.orderBoxPositive, mirrorVolumeBars ? startX : curEndXLow, info.top, mirrorVolumeBars ? curEndXHigh : maxEndX, (info.bottom + info.top) / 2)
-            box.set_text(ob.orderBoxPositive, showHighLowBoxText ? str.tostring(info.obHighVolume, format.volume) : "")
+            box.set_text(ob.orderBoxPositive, "خرید: " + str.tostring(buyVolume, format.volume))
+            box.set_text_color(ob.orderBoxPositive, volumeTextColor)
+            box.set_bgcolor(ob.orderBoxPositive, color.new(bullOrderBlockColor, buyTransparency))
 
             moveBox(ob.orderBoxNegative, mirrorVolumeBars ? startX : curEndXHigh, info.bottom, mirrorVolumeBars ? curEndXLow : maxEndX, (info.bottom + info.top) / 2)
-            box.set_text(ob.orderBoxNegative, showHighLowBoxText ? str.tostring(info.obLowVolume, format.volume) : "")
+            box.set_text(ob.orderBoxNegative, "فروش: " + str.tostring(sellVolume, format.volume))
+            box.set_text_color(ob.orderBoxNegative, volumeTextColor)
+            box.set_bgcolor(ob.orderBoxNegative, color.new(bearOrderBlockColor, sellTransparency))
 
             moveLine(ob.orderSeperator, volumeBarsLeftSide ? startX : maxEndX, (info.bottom + info.top) / 2, volumeBarsLeftSide ? maxEndX : startX)
 
