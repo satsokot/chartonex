@@ -210,17 +210,18 @@ renderOrderBlock (orderBlock ob) =>
         moveBox(ob.orderBox, info.startTime, info.top, info.startTime + zoneSize, info.bottom)
         moveBox(ob.orderBoxText, volumeBarsLeftSide ? maxEndX : info.startTime, info.top, volumeBarsLeftSide ? info.startTime + zoneSize : startX, info.bottom)
 
-        percentage = int((math.min(info.obHighVolume, info.obLowVolume) / math.max(info.obHighVolume, info.obLowVolume)) * 100.0)
-
         // ====================== حجم خرید/فروش و دلتا ======================
-        buyVolume = info.obHighVolume
-        sellVolume = info.obLowVolume
+        buyVolume = nz(info.obHighVolume)
+        sellVolume = nz(info.obLowVolume)
+        totalVolume = buyVolume + sellVolume
         delta = buyVolume - sellVolume
         deltaText = (delta >= 0 ? "+" : "") + str.tostring(delta, format.volume)
 
+        percentage = totalVolume > 0 ? int((math.min(buyVolume, sellVolume) / math.max(math.max(buyVolume, sellVolume), 1)) * 100.0) : 0
+
         // سهم هر طرف از کل حجم (0 تا 1) برای تعیین پررنگی/کمرنگی
-        buyShare = buyVolume / (buyVolume + sellVolume)
-        sellShare = sellVolume / (buyVolume + sellVolume)
+        buyShare = totalVolume > 0 ? buyVolume / totalVolume : 0.5
+        sellShare = totalVolume > 0 ? sellVolume / totalVolume : 0.5
         // هر چه سهم بیشتر، رنگ پررنگ‌تر (شفافیت کمتر)
         buyTransparency = int(100 - buyShare * 100)
         sellTransparency = int(100 - sellShare * 100)
@@ -230,7 +231,7 @@ renderOrderBlock (orderBlock ob) =>
         persianText = ob.info.obType == "Bull" ? "ناحیه مناسب خرید" : "ناحیه مناسب فروش"
         timeframeLabel = na(ob.info.combinedTimeframesStr) ? formatTimeframeString(ob.info.timeframeStr) : ob.info.combinedTimeframesStr
 
-        volumePart = orderBlockVolumetricInfo ? str.tostring(ob.info.obVolume, format.volume) + " (" + str.tostring(percentage) + "%)\n" : ""
+        volumePart = orderBlockVolumetricInfo ? str.tostring(nz(ob.info.obVolume), format.volume) + " (" + str.tostring(percentage) + "%)\n" : ""
         deltaPart = orderBlockVolumetricInfo ? "دلتا: " + deltaText + "\n" : ""
         combinedPart = (combinedText and ob.info.combined) ? "[Combined]\n" : ""
 
@@ -239,8 +240,9 @@ renderOrderBlock (orderBlock ob) =>
         // =======================================================================
 
         if orderBlockVolumetricInfo
-            curEndXHigh = int(math.ceil((info.obHighVolume / info.obVolume) * (maxEndX - startX) + startX))
-            curEndXLow = int(math.ceil((info.obLowVolume / info.obVolume) * (maxEndX - startX) + startX))
+            // کشیدگی هر باکس به نسبت سهم حجمش از کل
+            curEndXHigh = int(math.ceil(buyShare * (maxEndX - startX) + startX))
+            curEndXLow = int(math.ceil(sellShare * (maxEndX - startX) + startX))
 
             moveBox(ob.orderBoxPositive, mirrorVolumeBars ? startX : curEndXLow, info.top, mirrorVolumeBars ? curEndXHigh : maxEndX, (info.bottom + info.top) / 2)
             box.set_text(ob.orderBoxPositive, "خرید: " + str.tostring(buyVolume, format.volume))
@@ -275,6 +277,12 @@ findOBSwings(len) =>
 
     [top, bottom]
 
+// تخمین حجم خریدار یک کندل بر اساس موقعیت close نسبت به high/low
+candleBuyVolume (i) =>
+    candleRange = high[i] - low[i]
+    ratio = candleRange > 0 ? (close[i] - low[i]) / candleRange : 0.5
+    nz(volume[i]) * ratio
+
 findOrderBlocks () =>
     if bar_index > last_bar_index - maxDistanceToLastBar
         [top, btm] = findOBSwings(swingLength)
@@ -303,9 +311,11 @@ findOrderBlocks () =>
                 boxTop := boxBtm == min[i] ? max[i] : boxTop
                 boxLoc := boxBtm == min[i] ? time[i] : boxLoc
 
-            newOrderBlockInfo = orderBlockInfo.new(boxTop, boxBtm, volume + volume[1] + volume[2], "Bull", boxLoc)
-            newOrderBlockInfo.obLowVolume := volume[2]
-            newOrderBlockInfo.obHighVolume := volume + volume[1]
+            totalOBVolume = nz(volume) + nz(volume[1]) + nz(volume[2])
+            buyOBVolume = candleBuyVolume(0) + candleBuyVolume(1) + candleBuyVolume(2)
+            newOrderBlockInfo = orderBlockInfo.new(boxTop, boxBtm, totalOBVolume, "Bull", boxLoc)
+            newOrderBlockInfo.obHighVolume := buyOBVolume
+            newOrderBlockInfo.obLowVolume := totalOBVolume - buyOBVolume
 
             obSize = math.abs(newOrderBlockInfo.top - newOrderBlockInfo.bottom)
             if obSize <= atr * maxATRMult
@@ -334,9 +344,11 @@ findOrderBlocks () =>
                 boxBtm := boxTop == max[i] ? min[i] : boxBtm
                 boxLoc := boxTop == max[i] ? time[i] : boxLoc
 
-            newOrderBlockInfo = orderBlockInfo.new(boxTop, boxBtm, volume + volume[1] + volume[2], "Bear", boxLoc)
-            newOrderBlockInfo.obLowVolume := volume + volume[1]
-            newOrderBlockInfo.obHighVolume := volume[2]
+            totalOBVolume = nz(volume) + nz(volume[1]) + nz(volume[2])
+            buyOBVolume = candleBuyVolume(0) + candleBuyVolume(1) + candleBuyVolume(2)
+            newOrderBlockInfo = orderBlockInfo.new(boxTop, boxBtm, totalOBVolume, "Bear", boxLoc)
+            newOrderBlockInfo.obHighVolume := buyOBVolume
+            newOrderBlockInfo.obLowVolume := totalOBVolume - buyOBVolume
 
             obSize = math.abs(newOrderBlockInfo.top - newOrderBlockInfo.bottom)
             if obSize <= atr * maxATRMult
