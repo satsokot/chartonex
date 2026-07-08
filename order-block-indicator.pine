@@ -93,6 +93,13 @@ absVolSMAMult = input.float(1.0, "Min Total Volume vs SMA Volume", minval = 0, s
 absMinOppPct = input.float(40, "Min Opposite Side Volume %", minval = 0, maxval = 100, group = "ICT: Volume Absorption")
 showVolInText = input.bool(true, "Show Buy/Sell/Delta in OB Text", group = "ICT: Volume Absorption")
 
+// ====================== ICT: Structure Drawings ======================
+showStructure = input.bool(true, "Show BOS / CHoCH (MSS) Lines", group = "ICT: Structure Drawings")
+showLiquidityLevels = input.bool(true, "Show BSL / SSL Liquidity Levels", group = "ICT: Structure Drawings")
+showFVGBoxes = input.bool(true, "Show FVG Boxes", group = "ICT: Structure Drawings")
+structLabelColor = input.color(color.white, "Structure Label Color", group = "ICT: Structure Drawings")
+maxStructDrawings = input.int(15, "Max Drawings Per Type", minval = 3, maxval = 50, group = "ICT: Structure Drawings")
+
 // ====================== ICT: Quality Score ======================
 minScore = input.int(8, "Minimum Score to Display OB (0-15)", minval = 0, maxval = 15, group = "ICT: Quality Score")
 showScore = input.bool(true, "Show Score in OB Text", group = "ICT: Quality Score")
@@ -180,6 +187,48 @@ rangeHigh = ta.highest(high, pdLookback)
 rangeLow = ta.lowest(low, pdLookback)
 rangeMid = math.avg(rangeHigh, rangeLow)
 trendSMA = ta.sma(close, pdLookback)
+// ====================================================================================
+
+// ====================== رسم ساختارهای ICT در محل وقوع ======================
+var line[] structLines = array.new<line>(0)
+var label[] structLabels = array.new<label>(0)
+var line[] liqLines = array.new<line>(0)
+var label[] liqLabels = array.new<label>(0)
+var box[] fvgBoxes = array.new<box>(0)
+// جهت ساختار بازار: 1 = صعودی، -1 = نزولی، 0 = نامشخص (برای تفکیک BOS از CHoCH)
+var int[] structDirHolder = array.from(0)
+
+pushLineCapped (line[] arr, line l, int maxCount) =>
+    arr.push(l)
+    if arr.size() > maxCount
+        line.delete(arr.shift())
+
+pushLabelCapped (label[] arr, label l, int maxCount) =>
+    arr.push(l)
+    if arr.size() > maxCount
+        label.delete(arr.shift())
+
+pushBoxCapped (box[] arr, box b, int maxCount) =>
+    arr.push(b)
+    if arr.size() > maxCount
+        box.delete(arr.shift())
+
+// --- SSL: نقدینگی سمت فروش (کف جارو شده توسط حرکت صعودی) ---
+if barstate.isconfirmed and showLiquidityLevels and bullSweepRaw and not bullSweepRaw[1]
+    pushLineCapped(liqLines, line.new(bar_index - sweepLookback, priorLowRef, bar_index + 2, priorLowRef, xloc.bar_index, extend.none, bearOrderBlockColor, line.style_dashed, 1), maxStructDrawings)
+    pushLabelCapped(liqLabels, label.new(bar_index + 2, priorLowRef, "SSL", xloc.bar_index, yloc.price, #00000000, label.style_label_left, structLabelColor, size.small), maxStructDrawings)
+
+// --- BSL: نقدینگی سمت خرید (سقف جارو شده توسط حرکت نزولی) ---
+if barstate.isconfirmed and showLiquidityLevels and bearSweepRaw and not bearSweepRaw[1]
+    pushLineCapped(liqLines, line.new(bar_index - sweepLookback, priorHighRef, bar_index + 2, priorHighRef, xloc.bar_index, extend.none, bullOrderBlockColor, line.style_dashed, 1), maxStructDrawings)
+    pushLabelCapped(liqLabels, label.new(bar_index + 2, priorHighRef, "BSL", xloc.bar_index, yloc.price, #00000000, label.style_label_left, structLabelColor, size.small), maxStructDrawings)
+
+// --- FVG: باکس گپ ارزش منصفانه در محل خودش ---
+if barstate.isconfirmed and showFVGBoxes and bullFVGRaw
+    pushBoxCapped(fvgBoxes, box.new(bar_index - 2, low, bar_index + 4, high[2], xloc = xloc.bar_index, border_color = #00000000, bgcolor = color.new(bullOrderBlockColor, 85), text = "FVG", text_color = structLabelColor, text_size = size.tiny, text_halign = text.align_right), maxStructDrawings)
+
+if barstate.isconfirmed and showFVGBoxes and bearFVGRaw
+    pushBoxCapped(fvgBoxes, box.new(bar_index - 2, low[2], bar_index + 4, high, xloc = xloc.bar_index, border_color = #00000000, bgcolor = color.new(bearOrderBlockColor, 85), text = "FVG", text_color = structLabelColor, text_size = size.tiny, text_halign = text.align_right), maxStructDrawings)
 // ====================================================================================
 
 type orderBlockInfo
@@ -335,8 +384,9 @@ renderOrderBlock (orderBlock ob) =>
             ob.orderSeperator := line.new(na,na,na,na,xloc.bar_time,extend.none,textColor,line.style_dashed,1)
             ob.orderTextSeperator := line.new(na,na,na,na,xloc.bar_time,extend.none,textColor,line.style_solid,1)
 
-        // اوردر بلاک مصرف نشده: باکس دقیقاً تا کندل جاری ادامه پیدا می‌کند
-        zoneSize = (time + 1) - info.startTime
+        // اوردر بلاک مصرف نشده: باکس از محل تشکیل تا کندل جاری ادامه پیدا می‌کند؛
+        // برای جا شدن اطلاعات، حداقل عرض باکس به اندازه Extend Zones (بر اساس تایم‌فریم) تضمین می‌شود
+        zoneSize = math.max((time + 1) - info.startTime, extendZonesByTime)
 
         startX = volumeBarsLeftSide ? info.startTime : info.startTime + zoneSize - zoneSize / 3
         maxEndX = volumeBarsLeftSide ? info.startTime + zoneSize / 3 : info.startTime + zoneSize
@@ -486,6 +536,13 @@ findOrderBlocks () =>
         if close > top.y and not top.crossed
             top.crossed := true
 
+            // رسم BOS / CHoCH (MSS) صعودی در محل شکست سوینگ
+            if showStructure
+                bullIsChoch = structDirHolder.get(0) == -1
+                structDirHolder.set(0, 1)
+                pushLineCapped(structLines, line.new(top.x, top.y, bar_index, top.y, xloc.bar_index, extend.none, bullOrderBlockColor, line.style_solid, 1), maxStructDrawings)
+                pushLabelCapped(structLabels, label.new(bar_index, top.y, bullIsChoch ? "CHoCH (MSS)" : "BOS", xloc.bar_index, yloc.price, #00000000, label.style_label_down, structLabelColor, size.small), maxStructDrawings)
+
             // کاندیدا: پایین‌ترین کندل ناحیه مبدا قبل از حرکت (منطق ICT: آخرین کندل نزولی/پایین‌ترین کندل قبل از دیسپلیسمنت)
             boxBtm = max[1]
             boxTop = min[1]
@@ -599,6 +656,13 @@ findOrderBlocks () =>
         // ================= ساخت اوردر بلاک نزولی جدید با فیلترهای ICT =================
         if close < btm.y and not btm.crossed
             btm.crossed := true
+
+            // رسم BOS / CHoCH (MSS) نزولی در محل شکست سوینگ
+            if showStructure
+                bearIsChoch = structDirHolder.get(0) == 1
+                structDirHolder.set(0, -1)
+                pushLineCapped(structLines, line.new(btm.x, btm.y, bar_index, btm.y, xloc.bar_index, extend.none, bearOrderBlockColor, line.style_solid, 1), maxStructDrawings)
+                pushLabelCapped(structLabels, label.new(bar_index, btm.y, bearIsChoch ? "CHoCH (MSS)" : "BOS", xloc.bar_index, yloc.price, #00000000, label.style_label_up, structLabelColor, size.small), maxStructDrawings)
 
             // کاندیدا: بالاترین کندل ناحیه مبدا قبل از حرکت نزولی
             boxBtm = min[1]
