@@ -75,10 +75,14 @@ showFairValueGapsTooltip        = 'Display fair values gaps on the chart'
 fairValueGapsThresholdTooltip   = 'Filter out non significant fair value gaps'
 fairValueGapsTimeframeTooltip   = 'Fair value gaps timeframe'
 showPremiumDiscountZonesTooltip = 'Display premium, discount, and equilibrium zones on chart'
+invalidBoxLookbackTooltip       = 'Touched (invalid) boxes are removed once their touch bar is older than this many candles — works the same on every timeframe'
+invalidTextSizeTooltip          = 'Font size of the invalid tag written on touched boxes'
 
 modeInput                       = input.string( HISTORICAL, 'Mode',                     group = SMART_GROUP,    tooltip = modeTooltip, options = [HISTORICAL, PRESENT])
 styleInput                      = input.string( COLORED,    'Style',                    group = SMART_GROUP,    tooltip = styleTooltip,options = [COLORED, MONOCHROME])
 showTrendInput                  = input(        false,      'Color Candles',            group = SMART_GROUP,    tooltip = showTrendTooltip)
+invalidBoxLookbackInput         = input.int(    200,        'Invalid Box Lookback',     group = SMART_GROUP,    tooltip = invalidBoxLookbackTooltip, minval = 1)
+invalidTextSizeInput            = input.string( SMALL,      'Invalid Text Size',        group = SMART_GROUP,    tooltip = invalidTextSizeTooltip,    options = [TINY,SMALL,NORMAL])
 
 showInternalsInput              = input(        true,       'Show Internal Structure',  group = INTERNAL_GROUP, tooltip = showInternalsTooltip)
 showInternalBullInput           = input.string( ALL,        'Bullish Structure',        group = INTERNAL_GROUP, inline = 'ibull', options = [ALL,BOS,CHOCH])
@@ -176,7 +180,8 @@ type fairValueGap
     int bias
     box topBox
     box bottomBox
-    bool touched    = false
+    bool touched        = false
+    int touchedBarIndex = na
 
 // @type                            UDT representing trend bias
 type trend
@@ -203,8 +208,9 @@ type orderBlock
     float barLow
     int barTime
     int bias
-    bool touched    = false
-    box b_ox        = na
+    bool touched        = false
+    box b_ox            = na
+    int touchedBarIndex = na
 
 var pivot swingHigh                 = pivot.new(na,na,false)
 var pivot swingLow                  = pivot.new(na,na,false)
@@ -388,6 +394,14 @@ drawStructure(pivot p_ivot, string tag, color structureColor, string lineStyle, 
 deleteOrderBlocks(bool internal = false) =>
     array<orderBlock> orderBlocks = internal ? internalOrderBlocks : swingOrderBlocks
 
+    // purge invalid boxes whose touch bar is older than the lookback input
+    if orderBlocks.size() > 0
+        for index = orderBlocks.size() - 1 to 0
+            orderBlock eachOrderBlock = orderBlocks.get(index)
+            if eachOrderBlock.touched and bar_index - eachOrderBlock.touchedBarIndex > invalidBoxLookbackInput
+                eachOrderBlock.b_ox.delete()
+                orderBlocks.remove(index)
+
     for eachOrderBlock in orderBlocks
         if not eachOrderBlock.touched
             bool crossedOderBlock = false
@@ -406,7 +420,8 @@ deleteOrderBlocks(bool internal = false) =>
                     currentAlerts.swingBullishOrderBlock    := true
 
             if crossedOderBlock
-                eachOrderBlock.touched := true
+                eachOrderBlock.touched          := true
+                eachOrderBlock.touchedBarIndex  := bar_index
                 eachOrderBlock.b_ox.set_bottom_right_point(chart.point.new(time,na,eachOrderBlock.barLow))
                 eachOrderBlock.b_ox.set_text(INVALID_TEXT)
 
@@ -446,7 +461,7 @@ storeOrdeBlock(pivot p_ivot,bool internal = false,int bias) =>
 
         orderBlockColor = styleInput == MONOCHROME ? (bias == BEARISH ? color.new(MONO_BEARISH,80) : color.new(MONO_BULLISH,80)) : internal ? (bias == BEARISH ? internalBearishOrderBlockColor : internalBullishOrderBlockColor) : (bias == BEARISH ? swingBearishOrderBlockColor : swingBullishOrderBlockColor)
 
-        box o_box = box.new(chart.point.new(times.get(parsedIndex),na,parsedHighs.get(parsedIndex)), chart.point.new(time,na,parsedLows.get(parsedIndex)), xloc = xloc.bar_time, border_color = internal ? na : orderBlockColor, bgcolor = orderBlockColor, text_color = GRAY, text_size = size.small)
+        box o_box = box.new(chart.point.new(times.get(parsedIndex),na,parsedHighs.get(parsedIndex)), chart.point.new(time,na,parsedLows.get(parsedIndex)), xloc = xloc.bar_time, border_color = internal ? na : orderBlockColor, bgcolor = orderBlockColor, text_color = GRAY, text_size = invalidTextSizeInput)
 
         orderBlock o_rderBlock          = orderBlock.new(parsedHighs.get(parsedIndex), parsedLows.get(parsedIndex), times.get(parsedIndex), bias, false, o_box)
         array<orderBlock> orderBlocks   = internal ? internalOrderBlocks : swingOrderBlocks
@@ -555,17 +570,27 @@ displayStructure(bool internal = false) =>
 // @function            draw one fair value gap box (each fair value gap has two boxes)
 // CHANGE: the right edge starts at the current bar and is extended each bar in
 // updateFairValueGaps until the gap is touched
-fairValueGapBox(leftTime,topPrice,bottomPrice,boxColor) => box.new(chart.point.new(leftTime,na,topPrice),chart.point.new(time,na,bottomPrice), xloc=xloc.bar_time, border_color = boxColor, bgcolor = boxColor, text_color = GRAY, text_size = size.small)
+fairValueGapBox(leftTime,topPrice,bottomPrice,boxColor) => box.new(chart.point.new(leftTime,na,topPrice),chart.point.new(time,na,bottomPrice), xloc=xloc.bar_time, border_color = boxColor, bgcolor = boxColor, text_color = GRAY, text_size = invalidTextSizeInput)
 
 // @function            check fair value gap touches
 // CHANGE: a touched gap is frozen at the touch bar and tagged invalid instead
 // of being deleted. Touch means price entering the gap from its open side
 deleteFairValueGaps() =>
+    // purge invalid boxes whose touch bar is older than the lookback input
+    if fairValueGaps.size() > 0
+        for index = fairValueGaps.size() - 1 to 0
+            fairValueGap eachFairValueGap = fairValueGaps.get(index)
+            if eachFairValueGap.touched and bar_index - eachFairValueGap.touchedBarIndex > invalidBoxLookbackInput
+                eachFairValueGap.topBox.delete()
+                eachFairValueGap.bottomBox.delete()
+                fairValueGaps.remove(index)
+
     for eachFairValueGap in fairValueGaps
         if not eachFairValueGap.touched
             if (low < eachFairValueGap.top and eachFairValueGap.bias == BULLISH) or (high > eachFairValueGap.top and eachFairValueGap.bias == BEARISH)
                 float mid = math.avg(eachFairValueGap.top, eachFairValueGap.bottom)
-                eachFairValueGap.touched := true
+                eachFairValueGap.touched            := true
+                eachFairValueGap.touchedBarIndex    := bar_index
                 eachFairValueGap.topBox.set_bottom_right_point(   chart.point.new(time,na,mid))
                 eachFairValueGap.bottomBox.set_bottom_right_point(chart.point.new(time,na,eachFairValueGap.bottom))
                 eachFairValueGap.topBox.set_text(INVALID_TEXT)
