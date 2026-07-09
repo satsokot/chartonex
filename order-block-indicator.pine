@@ -4,6 +4,7 @@ const int maxBoxesCount = 500
 const float overlapThresholdPercentage = 0
 const int maxDistanceToLastBar = 1750 // Affects Running Time
 const int maxOrderBlocks = 30
+const int maxLiqLevels = 10
 
 indicator(title = 'اوردر بلاک + حجم (Flux & Mehdi)', overlay = true, max_boxes_count = maxBoxesCount, max_labels_count = maxBoxesCount, max_lines_count = maxBoxesCount, max_bars_back = 5000)
 
@@ -16,14 +17,12 @@ if barstate.islast
 OBsEnabled = true
 orderBlockVolumetricInfo = input.bool(true, "Volumetric Info", group = "General Configuration", inline="EV", display = display.none)
 combineOBs = DEBUG ? input.bool(true, "Combine Zones", group = "General Configuration", display = display.none) : true
-maxATRMult = DEBUG ? input.float(3.5,"Max Atr Multiplier", group = "General Configuration") : 3.5
-swingLength = input.int(10, 'Swing Length', minval = 3, tooltip="Swing length is used when finding order block formations. Smaller values will result in finding smaller order blocks.",group = "General Configuration", display = display.none)
-zoneCount = input.string("Low", 'Zone Count', options = ["High", "Medium", "Low", "One"], tooltip = "Number of Order Block Zones to be rendered. Higher options will result in older Order Blocks shown.", group = "General Configuration", display = display.none)
+swingLength = input.int(10, 'OB Trigger Swing Length', minval = 3, tooltip="طول سوینگ موتور تشخیص اوردر بلاک", group = "General Configuration", display = display.none)
+zoneCount = input.string("Low", 'Zone Count', options = ["High", "Medium", "Low", "One"], group = "General Configuration", display = display.none)
 
-// ====================== رنگ‌های جدید ======================
+// ====================== رنگ‌ها ======================
 bullOrderBlockColor = input(#57d71280, 'Bullish', inline = 'obColor', group = 'General Configuration', display = display.none)
 bearOrderBlockColor = input(#e91e6380, 'Bearish', inline = 'obColor', group = 'General Configuration', display = display.none)
-// =======================================================
 
 bullishOrderBlocks = zoneCount == "One" ? 1 : zoneCount == "Low" ? 3 : zoneCount == "Medium" ? 5 : 10
 bearishOrderBlocks = zoneCount == "One" ? 1 : zoneCount == "Low" ? 3 : zoneCount == "Medium" ? 5 : 10
@@ -36,90 +35,126 @@ textColor = input.color(#000000, "Text Color", group = "Style")
 volumeTextColor = input.color(#000000, "Volume Text Color", group = "Style")
 textSizeOption = input.string("Normal", "Text Size", options = ["Tiny", "Small", "Normal", "Large", "Huge"], group = "Style")
 textSize = textSizeOption == "Tiny" ? size.tiny : textSizeOption == "Small" ? size.small : textSizeOption == "Normal" ? size.normal : textSizeOption == "Large" ? size.large : size.huge
-// =======================================================
 
-extendZonesBy = DEBUG ? input.int(15, "Extend Zones", group = "Style", minval = 1, maxval = 30, inline = "ExtendZones") : 15
-extendZonesDynamic = DEBUG ? input.bool(true, "Dynamic", group = "Style", inline = "ExtendZones") : true
-combinedText = DEBUG ? input.bool(false, "Combined Text", group = "Style", inline = "CombinedColor") : false
-volumeBarsPlace = DEBUG ? input.string("Left", "Show Volume Bars At", options = ["Left", "Right"], group = "Style", inline = "volumebars") : "Left"
-mirrorVolumeBars = DEBUG ? input.bool(true, "Mirror Volume Bars", group = "Style", inline = "volumebars") : true
+extendZonesBy = 15
+volumeBarsPlace = "Left"
+mirrorVolumeBars = true
+combinedText = false
 
 volumeBarsLeftSide = (volumeBarsPlace == "Left")
 extendZonesByTime = extendZonesBy * timeframe.in_seconds(timeframe.period) * 1000
 
-// ====================== Mitigation / Invalidation (ICT) ======================
-mitigationMethod = input.string("Wick", "Mitigation Method", options = ["Wick", "Close"], group = "Mitigation & Invalidation", tooltip = "لمس ناحیه: با سایه کندل یا با بدنه/کلوز")
-invalidationMethod = input.string("Wick", "Invalidation Method", options = ["Wick", "Close"], group = "Mitigation & Invalidation", tooltip = "شکست کامل ناحیه: با سایه یا با کلوز")
-deleteOnMitigation = input.bool(true, "Delete on Mitigation", group = "Mitigation & Invalidation", tooltip = "به محض رسیدن قیمت به ناحیه، اوردر بلاک حذف شود")
-deleteOnInvalidation = input.bool(true, "Delete on Invalidation", group = "Mitigation & Invalidation")
-maxMitigations = input.int(1, "Maximum Allowed Mitigations", minval = 1, group = "Mitigation & Invalidation")
-markWeakOB = input.bool(true, "Mark Weak OB (More Transparent)", group = "Mitigation & Invalidation")
+// ====================== 1) Swing Structure ======================
+intSwingLen = input.int(5, "Internal Swing Length", minval = 2, group = "ICT: Swing Structure")
+extSwingLen = input.int(15, "External Swing Length", minval = 5, group = "ICT: Swing Structure")
+useInternalStructure = input.bool(true, "Use Internal Structure", group = "ICT: Swing Structure")
+useExternalStructure = input.bool(true, "Use External Structure", group = "ICT: Swing Structure")
 
-// ====================== ICT Filter: Liquidity Sweep ======================
-sweepEnabled = input.bool(true, "Enable Liquidity Sweep Filter", group = "ICT: Liquidity Sweep")
-sweepLookback = input.int(20, "Liquidity Lookback Length", minval = 5, group = "ICT: Liquidity Sweep")
-sweepCloseBack = input.bool(true, "Sweep Must Close Back Inside Range", group = "ICT: Liquidity Sweep")
+// ====================== 2) BOS ======================
+bosEnabled = input.bool(true, "Enable BOS Filter", group = "ICT: BOS")
+bosSwingType = input.string("Both", "BOS Swing Type", options = ["Internal", "External", "Both"], group = "ICT: BOS")
+bosConfirm = input.string("Close", "BOS Confirmation", options = ["Close", "Wick"], group = "ICT: BOS")
+bosRequireDisp = input.bool(true, "Require Displacement on BOS", group = "ICT: BOS")
+bosBodyATRMult = input.float(1.0, "Minimum BOS Body ATR Multiplier", minval = 0.1, step = 0.1, group = "ICT: BOS")
+bosBodyPct = input.float(50, "Minimum BOS Candle Body %", minval = 0, maxval = 100, group = "ICT: BOS")
 
-// ====================== ICT Filter: Displacement ======================
-dispEnabled = input.bool(true, "Enable Displacement Filter", group = "ICT: Displacement")
-dispATRLen = input.int(14, "ATR Length", minval = 1, group = "ICT: Displacement")
-dispATRMult = input.float(1.2, "Min Displacement ATR Multiplier", minval = 0.1, step = 0.1, group = "ICT: Displacement")
-dispMinBodyPct = input.float(50, "Min Body % of Candle Range", minval = 0, maxval = 100, group = "ICT: Displacement")
+// ====================== 3) CHoCH / MSS ======================
+chochEnabled = input.bool(true, "Enable CHOCH Filter", group = "ICT: CHOCH/MSS")
+chochConfirm = input.string("Close", "CHOCH Confirmation", options = ["Close", "Wick"], group = "ICT: CHOCH/MSS")
+chochRequireSweep = input.bool(true, "Require Sweep Before CHOCH", group = "ICT: CHOCH/MSS")
+chochRequireDisp = input.bool(true, "Require Displacement After CHOCH", group = "ICT: CHOCH/MSS")
+chochWindow = input.int(30, "CHOCH Validity Window (Bars)", minval = 5, group = "ICT: CHOCH/MSS")
 
-// ====================== ICT Filter: BOS / MSS ======================
-bosEnabled = input.bool(true, "Enable BOS/MSS Filter", group = "ICT: BOS/MSS")
-bosMethod = input.string("Close", "BOS Confirmation By", options = ["Close", "Wick"], group = "ICT: BOS/MSS")
-// نکته: تشخیص اوردر بلاک در این اندیکاتور ذاتاً بر پایه شکست سوینگ (close > swing high) است،
-// بنابراین BOS با کلوز همیشه در لحظه ساخت برقرار است؛ این فیلتر متد تایید را کنترل می‌کند.
+// ====================== 4-5) BSL / SSL ======================
+bslEnabled = input.bool(true, "Enable BSL Detection", group = "ICT: Liquidity (BSL/SSL)")
+sslEnabled = input.bool(true, "Enable SSL Detection", group = "ICT: Liquidity (BSL/SSL)")
+liqLookback = input.int(100, "BSL/SSL Lookback (Bars)", minval = 20, group = "ICT: Liquidity (BSL/SSL)")
+eqTolType = input.string("ATR", "Equal High/Low Tolerance Type", options = ["ATR", "Ticks", "Percent"], group = "ICT: Liquidity (BSL/SSL)")
+eqTolValue = input.float(0.25, "Equal High/Low Tolerance Value", minval = 0, step = 0.05, group = "ICT: Liquidity (BSL/SSL)")
+showLiquidityLevels = input.bool(true, "Show BSL/SSL Levels", group = "ICT: Liquidity (BSL/SSL)")
+usePDH = input.bool(true, "Use Previous Day High as BSL", group = "ICT: Liquidity (BSL/SSL)")
+usePDL = input.bool(true, "Use Previous Day Low as SSL", group = "ICT: Liquidity (BSL/SSL)")
 
-// ====================== ICT Filter: FVG ======================
-fvgEnabled = input.bool(true, "Enable FVG Filter", group = "ICT: FVG")
-fvgMinATRMult = input.float(0.0, "Min FVG Size (ATR Multiplier)", minval = 0, step = 0.1, group = "ICT: FVG")
-fvgShowInText = input.bool(true, "Show FVG Tag in OB Text", group = "ICT: FVG")
+// ====================== 6) Sweep ======================
+sweepEnabled = input.bool(true, "Enable Sweep Filter", group = "ICT: Sweep")
+sweepConfirmMode = input.string("N-Bar Return", "Sweep Confirmation", options = ["Same Candle Close Back", "N-Bar Return"], group = "ICT: Sweep")
+sweepReturnWindow = input.int(3, "Sweep Return Window (Bars)", minval = 1, group = "ICT: Sweep")
 
-// ====================== ICT Filter: Premium / Discount ======================
+// ====================== 7) Premium / Discount ======================
 pdEnabled = input.bool(true, "Enable Premium/Discount Filter", group = "ICT: Premium/Discount")
 pdLookback = input.int(50, "Dealing Range Lookback", minval = 10, group = "ICT: Premium/Discount")
+pdSource = input.string("External Swing", "Dealing Range Source", options = ["External Swing", "Recent Range", "Sweep Range"], group = "ICT: Premium/Discount")
 pdMinInsidePct = input.float(50, "Min % of OB Inside Correct Zone", minval = 0, maxval = 100, group = "ICT: Premium/Discount")
+showEquilibrium = input.bool(true, "Show Equilibrium Line", group = "ICT: Premium/Discount")
+showPDBackground = input.bool(false, "Show Premium/Discount Background", group = "ICT: Premium/Discount")
 
-// ====================== ICT: Mean Threshold ======================
+// ====================== 8) FVG ======================
+fvgEnabled = input.bool(true, "Enable FVG Filter", group = "ICT: FVG")
+fvgMinSizeType = input.string("ATR", "FVG Minimum Size Type", options = ["ATR", "Ticks", "Percent"], group = "ICT: FVG")
+fvgMinSizeValue = input.float(0.0, "FVG Minimum Size Value", minval = 0, step = 0.1, group = "ICT: FVG")
+fvgRequireUnfilled = input.bool(true, "Reject OB if FVG Fully Filled", group = "ICT: FVG")
+maxObFvgBars = input.int(10, "Max Distance Between OB and FVG (Bars)", minval = 1, group = "ICT: FVG")
+showFVGBoxes = input.bool(true, "Show Related FVG", group = "ICT: FVG")
+useFvgCE = input.bool(false, "Use Consequent Encroachment 50% Level", group = "ICT: FVG")
+
+// ====================== 9) Displacement ======================
+dispEnabled = input.bool(true, "Enable Displacement Filter", group = "ICT: Displacement")
+dispATRLen = input.int(14, "ATR Length", minval = 1, group = "ICT: Displacement")
+dispATRMult = input.float(1.2, "Minimum Body ATR Multiplier", minval = 0.1, step = 0.1, group = "ICT: Displacement")
+dispMinBodyPct = input.float(50, "Minimum Candle Body %", minval = 0, maxval = 100, group = "ICT: Displacement")
+dispNearExtreme = input.bool(false, "Close Near Extreme Required", group = "ICT: Displacement")
+dispExtremePct = input.float(25, "Close Near Extreme %", minval = 5, maxval = 50, group = "ICT: Displacement")
+
+// ====================== 10) OB Candidate ======================
+obCandidateMode = input.string("Hybrid", "OB Candidate Mode", options = ["Last Opposite Candle", "Extreme Opposite Candle", "Hybrid"], group = "ICT: OB Candidate")
+obSearchWindow = input.int(10, "OB Search Window Before Displacement", minval = 2, group = "ICT: OB Candidate")
+maxATRMult = input.float(3.5, "Max OB Size ATR Multiplier", minval = 0.5, group = "ICT: OB Candidate")
+useBodyOnly = input.bool(false, "Use Candle Body Only (No Wicks)", group = "ICT: OB Candidate")
+requireCauseStructure = input.bool(true, "Require OB To Cause BOS/CHOCH", group = "ICT: OB Candidate")
+
+// ====================== 12) Mitigation / Invalidation ======================
+mitigationMethod = input.string("Wick", "Mitigation Method", options = ["Wick", "Close"], group = "Mitigation & Invalidation")
+invalidationMethod = input.string("Wick", "Invalidation Method", options = ["Wick", "Close"], group = "Mitigation & Invalidation")
+deleteOnMitigation = input.bool(true, "Delete On First Mitigation", group = "Mitigation & Invalidation")
+maxMitigations = input.int(1, "Max Allowed Mitigations", minval = 1, group = "Mitigation & Invalidation")
+deleteOnInvalidation = input.bool(true, "Delete On Invalidation", group = "Mitigation & Invalidation")
+markMitigatedOB = input.bool(true, "Mark Mitigated OB", group = "Mitigation & Invalidation")
+markWeakOB = input.bool(true, "Mark Weak OB (More Transparent)", group = "Mitigation & Invalidation")
+
+// ====================== 13) Mean Threshold ======================
 showMeanLine = input.bool(true, "Show Mean Threshold Line", group = "ICT: Mean Threshold")
-meanWeaknessFilter = input.bool(false, "Use Mean Threshold as Weakness Filter", group = "ICT: Mean Threshold")
-meanInvalidationFilter = input.bool(false, "Use Mean Threshold as Invalidation Filter", group = "ICT: Mean Threshold")
+meanMode = input.string("Display Only", "Mean Threshold Mode", options = ["Display Only", "Mark Weak", "Invalidate"], group = "ICT: Mean Threshold")
+meanLineStyle = input.string("Dotted", "Mean Threshold Line Style", options = ["Dotted", "Dashed", "Solid"], group = "ICT: Mean Threshold")
 
-// ====================== ICT Filter: Volume Absorption ======================
-absEnabled = input.bool(false, "Enable Volume Absorption Filter", group = "ICT: Volume Absorption")
+// ====================== 14) Volume / Absorption ======================
+absEnabled = input.bool(false, "Enable Absorption Filter", group = "ICT: Volume Absorption")
 absVolSMAMult = input.float(1.0, "Min Total Volume vs SMA Volume", minval = 0, step = 0.1, group = "ICT: Volume Absorption")
 absMinOppPct = input.float(40, "Min Opposite Side Volume %", minval = 0, maxval = 100, group = "ICT: Volume Absorption")
-showVolInText = input.bool(true, "Show Buy/Sell/Delta in OB Text", group = "ICT: Volume Absorption")
+volSMALen = input.int(20, "Volume SMA Length", minval = 1, group = "ICT: Volume Absorption")
+showVolInText = input.bool(true, "Show Volume Tags In OB Text", group = "ICT: Volume Absorption")
 
-// ====================== ICT: Structure Drawings ======================
+// ====================== 15) Quality Score ======================
+minScore = input.int(8, "Minimum Score To Display (0-15)", minval = 0, maxval = 15, group = "ICT: Quality Score")
+showScore = input.bool(true, "Show Score In OB Text", group = "ICT: Quality Score")
+showTags = input.bool(true, "Show Validation Tags", group = "ICT: Quality Score")
+hideBelowScore = input.bool(true, "Hide OBs Below Minimum Score", tooltip = "اگر خاموش باشد، اوردر بلاک کم‌امتیاز به‌جای حذف، کم‌رنگ نمایش داده می‌شود", group = "ICT: Quality Score")
+
+// ====================== Structure Drawings ======================
 showStructure = input.bool(true, "Show BOS / CHoCH (MSS) Lines", group = "ICT: Structure Drawings")
-showLiquidityLevels = input.bool(true, "Show BSL / SSL Liquidity Levels", group = "ICT: Structure Drawings")
-showFVGBoxes = input.bool(true, "Show FVG Boxes", group = "ICT: Structure Drawings")
 structLabelColor = input.color(color.white, "Structure Label Color", group = "ICT: Structure Drawings")
 maxStructDrawings = input.int(15, "Max Drawings Per Type", minval = 3, maxval = 50, group = "ICT: Structure Drawings")
-
-// ====================== ICT: Quality Score ======================
-minScore = input.int(8, "Minimum Score to Display OB (0-15)", minval = 0, maxval = 15, group = "ICT: Quality Score")
-showScore = input.bool(true, "Show Score in OB Text", group = "ICT: Quality Score")
-showTags = input.bool(true, "Show Validation Tags in OB Text", group = "ICT: Quality Score")
 
 atr = ta.atr(10)
 
 // ====================== منبع دیتای حجم — روش Footprint IQ Pro ======================
-// دیتای اینترابار با request.security_lower_tf خوانده می‌شود (همان تکنیک Footprint IQ Pro [TradingIQ])
-// مهم: این حجم خرید/فروش، bid/ask واقعی نیست؛ تخمینی است بر اساس جهت کندل‌های تایم‌فریم پایین‌تر.
-footprintGranularity = input.string("1-Minute", "Granularity (Footprint)", options = ["Auto", "1-Minute", "1-Second"], group = "Volume Data", tooltip = "دقت خواندن دیتای داخل کندل. 1-Second نیازمند پلن Premium تریدینگ‌ویو است. Auto بر اساس تایم‌فریم چارت انتخاب می‌کند.")
+// مهم: Pine به bid/ask واقعی تاریخی دسترسی ندارد. حجم خرید/فروش «تخمینی» است:
+// از جهت کندل‌های تایم‌فریم پایین‌تر (اینترابار) با request.security_lower_tf محاسبه می‌شود.
+footprintGranularity = input.string("1-Minute", "Granularity (Footprint)", options = ["Auto", "1-Minute", "1-Second"], group = "Volume Data", tooltip = "دقت خواندن دیتای داخل کندل. 1-Second نیازمند پلن Premium است.")
 
 lowerTfStr = footprintGranularity == "1-Second" ? "1S" : footprintGranularity == "1-Minute" ? "1" : timeframe.in_seconds() >= 86400 ? "30" : timeframe.in_seconds() >= 3600 ? "5" : "1"
 
-// حجم خرید: کندل‌های داخلی صعودی (و در دوجی، بر اساس جهت تغییر قیمت)
 ltfBuyArr = request.security_lower_tf(syminfo.tickerid, lowerTfStr, close > open ? nz(volume) : close < open ? 0.0 : close >= nz(close[1], close) ? nz(volume) : 0.0)
-// حجم فروش: کندل‌های داخلی نزولی
 ltfSellArr = request.security_lower_tf(syminfo.tickerid, lowerTfStr, close < open ? nz(volume) : close > open ? 0.0 : close < nz(close[1], close) ? nz(volume) : 0.0)
-
-// تیک-والیوم: وقتی نماد اصلاً دیتای volume ندارد، تعداد کندل‌های داخلی به‌عنوان حجم شمرده می‌شود
 ltfBuyTicks = request.security_lower_tf(syminfo.tickerid, lowerTfStr, close > open ? 1.0 : close < open ? 0.0 : close >= nz(close[1], close) ? 1.0 : 0.0)
 ltfSellTicks = request.security_lower_tf(syminfo.tickerid, lowerTfStr, close < open ? 1.0 : close > open ? 0.0 : close < nz(close[1], close) ? 1.0 : 0.0)
 
@@ -131,72 +166,93 @@ tickBuy = ltfBuyTicks.size() > 0 ? nz(ltfBuyTicks.sum()) : 0.0
 tickSell = ltfSellTicks.size() > 0 ? nz(ltfSellTicks.sum()) : 0.0
 hasTickData = (tickBuy + tickSell) > 0
 
-// فال‌بک آخر: تخمین بر اساس موقعیت close در بازه کندل
 estimateRatio = (high - low) > 0 ? (close - low) / (high - low) : 0.5
 baseVolume = nz(volume) > 0 ? nz(volume) : (high - low) / syminfo.mintick
 estimateBuy = baseVolume * estimateRatio
 estimateSell = baseVolume - estimateBuy
 
-// سری نهایی حجم خرید و فروش هر کندل:
-// 1) حجم واقعی اینترابار  2) تیک-والیوم اینترابار  3) تخمین از بازه کندل
+// 1) حجم واقعی اینترابار  2) تیک-والیوم  3) تخمین از بازه کندل
 barBuyVolume = hasIntrabarData ? intrabarBuy : hasTickData ? tickBuy : estimateBuy
 barSellVolume = hasIntrabarData ? intrabarSell : hasTickData ? tickSell : estimateSell
 // ====================================================================================
 
-// ====================== سری‌های سراسری فیلترهای ICT (بدون ریپینت — فقط دیتای گذشته) ======================
+// ====================== سری‌های سراسری ICT (فقط دیتای گذشته — بدون ریپینت) ======================
 atrDisp = ta.atr(dispATRLen)
 totalBarVolume = barBuyVolume + barSellVolume
-volSMA = ta.sma(totalBarVolume, 20)
+volSMA = ta.sma(totalBarVolume, volSMALen)
 
 // --- Displacement ---
 dispBody = math.abs(close - open)
 candleRangeSize = high - low
-bullDisplacement = close > open and dispBody >= atrDisp * dispATRMult and (candleRangeSize <= 0 or dispBody >= candleRangeSize * dispMinBodyPct / 100)
-bearDisplacement = close < open and dispBody >= atrDisp * dispATRMult and (candleRangeSize <= 0 or dispBody >= candleRangeSize * dispMinBodyPct / 100)
+nearHighOK = not dispNearExtreme or (candleRangeSize <= 0 or (high - close) <= candleRangeSize * dispExtremePct / 100)
+nearLowOK = not dispNearExtreme or (candleRangeSize <= 0 or (close - low) <= candleRangeSize * dispExtremePct / 100)
+bullDisplacement = close > open and dispBody >= atrDisp * dispATRMult and (candleRangeSize <= 0 or dispBody >= candleRangeSize * dispMinBodyPct / 100) and nearHighOK
+bearDisplacement = close < open and dispBody >= atrDisp * dispATRMult and (candleRangeSize <= 0 or dispBody >= candleRangeSize * dispMinBodyPct / 100) and nearLowOK
+// بدنه قوی مخصوص BOS
+bosBodyOK = dispBody >= atrDisp * bosBodyATRMult and (candleRangeSize <= 0 or dispBody >= candleRangeSize * bosBodyPct / 100)
 
-// --- Liquidity Sweep ---
-recentLowest = ta.lowest(low, sweepLookback)
-recentHighest = ta.highest(high, sweepLookback)
-priorLowRef = recentLowest[sweepLookback]
-priorHighRef = recentHighest[sweepLookback]
-bullSweepRaw = recentLowest < priorLowRef and (not sweepCloseBack or close > priorLowRef)
-bearSweepRaw = recentHighest > priorHighRef and (not sweepCloseBack or close < priorHighRef)
-var int lastBullSweepBar = na
-var int lastBearSweepBar = na
-if bullSweepRaw
-    lastBullSweepBar := bar_index
-if bearSweepRaw
-    lastBearSweepBar := bar_index
-bullSweepRecent = not na(lastBullSweepBar) and (bar_index - lastBullSweepBar) <= sweepLookback
-bearSweepRecent = not na(lastBearSweepBar) and (bar_index - lastBearSweepBar) <= sweepLookback
+// --- پیوت‌های داخلی و خارجی ---
+intPH = ta.pivothigh(high, intSwingLen, intSwingLen)
+intPL = ta.pivotlow(low, intSwingLen, intSwingLen)
+extPH = ta.pivothigh(high, extSwingLen, extSwingLen)
+extPL = ta.pivotlow(low, extSwingLen, extSwingLen)
 
-// --- FVG (منطق کلاسیک سه‌کندلی) ---
-bullFVGRaw = low > high[2] and (low - high[2]) >= atrDisp * fvgMinATRMult
-bearFVGRaw = high < low[2] and (low[2] - high) >= atrDisp * fvgMinATRMult
-var int lastBullFVGBar = na
-var int lastBearFVGBar = na
-if bullFVGRaw
-    lastBullFVGBar := bar_index
-if bearFVGRaw
-    lastBearFVGBar := bar_index
-bullFVGRecent = not na(lastBullFVGBar) and (bar_index - lastBullFVGBar) <= 5
-bearFVGRecent = not na(lastBearFVGBar) and (bar_index - lastBearFVGBar) <= 5
+// --- تلورانس Equal High/Low و حداقل سایز FVG ---
+tolAmount (tType, tVal) =>
+    tType == "ATR" ? atrDisp * tVal : tType == "Ticks" ? syminfo.mintick * tVal : close * tVal / 100
 
-// --- Premium / Discount Dealing Range ---
+eqTol = tolAmount(eqTolType, eqTolValue)
+fvgMinSize = tolAmount(fvgMinSizeType, fvgMinSizeValue)
+
+// --- FVG سه‌کندلی کلاسیک ---
+bullFVGRaw = low > high[2] and (low - high[2]) >= fvgMinSize
+bearFVGRaw = high < low[2] and (low[2] - high) >= fvgMinSize
+
+// --- PDH / PDL (بدون ریپینت: کندل بسته روز قبل) ---
+[pdhVal, pdlVal] = request.security(syminfo.tickerid, "D", [high[1], low[1]], lookahead = barmerge.lookahead_on)
+newDay = ta.change(time("D")) != 0
+
+// --- رنج معاملاتی fallback ---
 rangeHigh = ta.highest(high, pdLookback)
 rangeLow = ta.lowest(low, pdLookback)
-rangeMid = math.avg(rangeHigh, rangeLow)
-trendSMA = ta.sma(close, pdLookback)
 // ====================================================================================
 
-// ====================== رسم ساختارهای ICT در محل وقوع ======================
+// ====================== استیت سراسری ساختار بازار ======================
+var float lastIntHigh = na, var bool intHighBroken = true, var int lastIntHighBar = na
+var float lastIntLow = na, var bool intLowBroken = true, var int lastIntLowBar = na
+var float lastExtHigh = na, var bool extHighBroken = true, var int lastExtHighBar = na
+var float lastExtLow = na, var bool extLowBroken = true, var int lastExtLowBar = na
+var int marketDir = 0 // 1 صعودی، -1 نزولی
+var int lastBullBOSBar = na, var int lastBearBOSBar = na
+var int lastBullChochBar = na, var int lastBearChochBar = na
+var int lastBullSweepBar = na, var int lastBearSweepBar = na // SSL sweep → صعودی، BSL sweep → نزولی
+var float lastSweptSSL = na, var float lastSweptBSL = na
+var int lastBullDispBar = na, var int lastBearDispBar = na
+var float bullFVGTop = na, var float bullFVGBtm = na, var int lastBullFVGBar = na, var bool bullFVGFilled = true
+var float bearFVGTop = na, var float bearFVGBtm = na, var int lastBearFVGBar = na, var bool bearFVGFilled = true
+
+// --- آرایه‌های سطوح نقدینگی: state: 0=فعال، 1=در انتظار برگشت ---
+var float[] bslPrices = array.new<float>(0)
+var int[] bslStates = array.new<int>(0)
+var int[] bslPendingBars = array.new<int>(0)
+var int[] bslBornBars = array.new<int>(0)
+var line[] bslLines = array.new<line>(0)
+var label[] bslLabels = array.new<label>(0)
+
+var float[] sslPrices = array.new<float>(0)
+var int[] sslStates = array.new<int>(0)
+var int[] sslPendingBars = array.new<int>(0)
+var int[] sslBornBars = array.new<int>(0)
+var line[] sslLines = array.new<line>(0)
+var label[] sslLabels = array.new<label>(0)
+
+// --- آرایه‌های رسم ---
 var line[] structLines = array.new<line>(0)
 var label[] structLabels = array.new<label>(0)
-var line[] liqLines = array.new<line>(0)
-var label[] liqLabels = array.new<label>(0)
+var line[] sweptLines = array.new<line>(0)
+var label[] sweptLabels = array.new<label>(0)
 var box[] fvgBoxes = array.new<box>(0)
-// جهت ساختار بازار: 1 = صعودی، -1 = نزولی، 0 = نامشخص (برای تفکیک BOS از CHoCH)
-var int[] structDirHolder = array.from(0)
+var line[] fvgCELines = array.new<line>(0)
 
 pushLineCapped (line[] arr, line l, int maxCount) =>
     arr.push(l)
@@ -212,23 +268,6 @@ pushBoxCapped (box[] arr, box b, int maxCount) =>
     arr.push(b)
     if arr.size() > maxCount
         box.delete(arr.shift())
-
-// --- SSL: نقدینگی سمت فروش (کف جارو شده توسط حرکت صعودی) ---
-if barstate.isconfirmed and showLiquidityLevels and bullSweepRaw and not bullSweepRaw[1]
-    pushLineCapped(liqLines, line.new(bar_index - sweepLookback, priorLowRef, bar_index + 2, priorLowRef, xloc.bar_index, extend.none, bearOrderBlockColor, line.style_dashed, 1), maxStructDrawings)
-    pushLabelCapped(liqLabels, label.new(bar_index + 2, priorLowRef, "SSL", xloc.bar_index, yloc.price, #00000000, label.style_label_left, structLabelColor, size.small), maxStructDrawings)
-
-// --- BSL: نقدینگی سمت خرید (سقف جارو شده توسط حرکت نزولی) ---
-if barstate.isconfirmed and showLiquidityLevels and bearSweepRaw and not bearSweepRaw[1]
-    pushLineCapped(liqLines, line.new(bar_index - sweepLookback, priorHighRef, bar_index + 2, priorHighRef, xloc.bar_index, extend.none, bullOrderBlockColor, line.style_dashed, 1), maxStructDrawings)
-    pushLabelCapped(liqLabels, label.new(bar_index + 2, priorHighRef, "BSL", xloc.bar_index, yloc.price, #00000000, label.style_label_left, structLabelColor, size.small), maxStructDrawings)
-
-// --- FVG: باکس گپ ارزش منصفانه در محل خودش ---
-if barstate.isconfirmed and showFVGBoxes and bullFVGRaw
-    pushBoxCapped(fvgBoxes, box.new(bar_index - 2, low, bar_index + 4, high[2], xloc = xloc.bar_index, border_color = #00000000, bgcolor = color.new(bullOrderBlockColor, 85), text = "FVG", text_color = structLabelColor, text_size = size.tiny, text_halign = text.align_right), maxStructDrawings)
-
-if barstate.isconfirmed and showFVGBoxes and bearFVGRaw
-    pushBoxCapped(fvgBoxes, box.new(bar_index - 2, low[2], bar_index + 4, high, xloc = xloc.bar_index, border_color = #00000000, bgcolor = color.new(bearOrderBlockColor, 85), text = "FVG", text_color = structLabelColor, text_size = size.tiny, text_halign = text.align_right), maxStructDrawings)
 // ====================================================================================
 
 type orderBlockInfo
@@ -335,18 +374,6 @@ moveBox (_box, _topLeftX, _topLeftY, _bottomRightX, _bottomRightY) =>
 isTimeframeLower (timeframe1F, timeframe2F) =>
     timeframe.in_seconds(timeframe1F) < timeframe.in_seconds(timeframe2F)
 
-getMinTimeframe (timeframe1F, timeframe2F) =>
-    if isTimeframeLower(timeframe1F, timeframe2F)
-        timeframe1F
-    else
-        timeframe2F
-
-getMaxTimeframe (timeframe1F, timeframe2F) =>
-    if isTimeframeLower(timeframe1F, timeframe2F)
-        timeframe2F
-    else
-        timeframe1F
-
 formatTimeframeString (formatTimeframe) =>
     timeframeF = formatTimeframe == "" ? timeframe.period : formatTimeframe
 
@@ -370,7 +397,6 @@ renderOrderBlock (orderBlock ob) =>
     orderBlockInfo info = ob.info
     ob.isRendered := true
     orderColor = ob.info.obType == "Bull" ? bullOrderBlockColor : bearOrderBlockColor
-    // اوردر بلاک ضعیف با شفافیت بیشتر نمایش داده می‌شود
     mainTransparency = info.weak and markWeakOB ? 2.5 : 1.5
 
     if OBsEnabled
@@ -384,8 +410,7 @@ renderOrderBlock (orderBlock ob) =>
             ob.orderSeperator := line.new(na,na,na,na,xloc.bar_time,extend.none,textColor,line.style_dashed,1)
             ob.orderTextSeperator := line.new(na,na,na,na,xloc.bar_time,extend.none,textColor,line.style_solid,1)
 
-        // اوردر بلاک مصرف نشده: باکس از محل تشکیل تا کندل جاری ادامه پیدا می‌کند؛
-        // برای جا شدن اطلاعات، حداقل عرض باکس به اندازه Extend Zones (بر اساس تایم‌فریم) تضمین می‌شود
+        // باکس از محل تشکیل تا کندل جاری؛ حداقل عرض برای جا شدن متن تضمین می‌شود
         zoneSize = math.max((time + 1) - info.startTime, extendZonesByTime)
 
         startX = volumeBarsLeftSide ? info.startTime : info.startTime + zoneSize - zoneSize / 3
@@ -394,11 +419,11 @@ renderOrderBlock (orderBlock ob) =>
         moveBox(ob.orderBox, info.startTime, info.top, info.startTime + zoneSize, info.bottom)
         moveBox(ob.orderBoxText, volumeBarsLeftSide ? maxEndX : info.startTime, info.top, volumeBarsLeftSide ? info.startTime + zoneSize : startX, info.bottom)
 
-        // خط میانگین (Mean Threshold — سطح 50% اوردر بلاک)
+        // خط Mean Threshold (سطح 50% اوردر بلاک)
         if showMeanLine and not na(info.meanThreshold)
-            ob.meanLine := line.new(info.startTime, info.meanThreshold, info.startTime + zoneSize, info.meanThreshold, xloc.bar_time, extend.none, textColor, line.style_dotted, 1)
+            meanStyle = meanLineStyle == "Dotted" ? line.style_dotted : meanLineStyle == "Dashed" ? line.style_dashed : line.style_solid
+            ob.meanLine := line.new(info.startTime, info.meanThreshold, info.startTime + zoneSize, info.meanThreshold, xloc.bar_time, extend.none, textColor, meanStyle, 1)
 
-        // ====================== حجم خرید/فروش و دلتا ======================
         buyVolume = nz(info.obHighVolume)
         sellVolume = nz(info.obLowVolume)
         totalVolume = buyVolume + sellVolume
@@ -411,9 +436,7 @@ renderOrderBlock (orderBlock ob) =>
         sellShare = totalVolume > 0 ? sellVolume / totalVolume : 0.5
         buyTransparency = int(100 - buyShare * 100)
         sellTransparency = int(100 - sellShare * 100)
-        // =====================================================================
 
-        // ====================== متن کامل (حجم + دلتا + امتیاز + تگ‌ها) ======================
         persianText = ob.info.obType == "Bull" ? "ناحیه مناسب خرید" : "ناحیه مناسب فروش"
         timeframeLabel = na(ob.info.combinedTimeframesStr) ? formatTimeframeString(ob.info.timeframeStr) : ob.info.combinedTimeframesStr
 
@@ -425,10 +448,8 @@ renderOrderBlock (orderBlock ob) =>
 
         finalText = volumePart + deltaPart + scorePart + persianText + "\n" + timeframeLabel + "\n" + tagsPart + combinedPart
         box.set_text(ob.orderBoxText, finalText)
-        // =======================================================================
 
         if orderBlockVolumetricInfo
-            // کشیدگی هر باکس به نسبت سهم حجمش از کل
             curEndXHigh = int(math.ceil(buyShare * (maxEndX - startX) + startX))
             curEndXLow = int(math.ceil(sellShare * (maxEndX - startX) + startX))
 
@@ -465,41 +486,337 @@ findOBSwings(len) =>
 
     [top, bottom]
 
-// حجم خریدار/فروشنده یک کندل از منبع انتخابی (فوت‌پرینت/اینترابار، تیک، یا تخمین)
+// حجم خریدار/فروشنده یک کندل — تخمینی از دیتای اینترابار (نه bid/ask واقعی)
 candleBuyVolume (i) =>
     nz(barBuyVolume[i])
 
 candleSellVolume (i) =>
     nz(barSellVolume[i])
 
-// ساخت رشته تگ‌های اعتبارسنجی ICT
-buildTags (sweepOK, dispOK, bosOK, fvgOK, pdOK, absOK, isBull) =>
+buildTags (sweepOK, chochOK, bosOK, dispOK, fvgOK, pdOK, absOK, isBull) =>
     string tags = ""
     if showTags
         tags += sweepOK ? "Sweep ✓ " : ""
-        tags += dispOK ? "Displacement ✓ " : ""
+        tags += chochOK ? "CHOCH ✓ " : ""
         tags += bosOK ? "BOS ✓ " : ""
-        tags += fvgOK and fvgShowInText ? "FVG ✓ " : ""
+        tags += dispOK ? "Displacement ✓ " : ""
+        tags += fvgOK ? "FVG ✓ " : ""
         tags += pdOK ? (isBull ? "Discount ✓ " : "Premium ✓ ") : ""
         tags += absOK ? "Absorption ✓" : ""
     tags
 
-findOrderBlocks () =>
-    // توابع ta.* باید در هر کندل اجرا شوند؛ بنابراین سوینگ‌ها بیرون از شرط محاسبه می‌شوند
-    [top, btm] = findOBSwings(swingLength)
-    // فقط روی کندل تاییدشده کار می‌کند تا ریپینت نشود
-    if bar_index > last_bar_index - maxDistanceToLastBar and barstate.isconfirmed
-        useBody = false
-        max = useBody ? math.max(close, open) : high
-        min = useBody ? math.min(close, open) : low
+// ====================== موتور نقدینگی، سوییپ و ساختار (اسکوپ سراسری) ======================
+// نکته: هیچ‌کدام از این رسم‌ها نباید داخل findOrderBlocks باشد (محدودیت security)
 
-        // ================= مدیریت اوردر بلاک‌های صعودی (Mitigation / Invalidation) =================
+// --- ثبت سطوح نقدینگی جدید از پیوت‌های خارجی + Equal High/Low ---
+if barstate.isconfirmed and bslEnabled and not na(extPH)
+    merged = false
+    if bslPrices.size() > 0
+        for i = 0 to bslPrices.size() - 1
+            if bslStates.get(i) == 0 and math.abs(bslPrices.get(i) - extPH) <= eqTol
+                bslPrices.set(i, math.max(bslPrices.get(i), extPH)) // Equal Highs → یک سطح
+                merged := true
+    if not merged
+        bslPrices.push(extPH)
+        bslStates.push(0)
+        bslPendingBars.push(0)
+        bslBornBars.push(bar_index - extSwingLen)
+        bslLines.push(showLiquidityLevels ? line.new(bar_index - extSwingLen, extPH, bar_index, extPH, xloc.bar_index, extend.none, bearOrderBlockColor, line.style_dashed, 1) : line(na))
+        bslLabels.push(showLiquidityLevels ? label.new(bar_index, extPH, "BSL", xloc.bar_index, yloc.price, #00000000, label.style_label_left, structLabelColor, size.small) : label(na))
+        if bslPrices.size() > maxLiqLevels
+            bslPrices.shift(), bslStates.shift(), bslPendingBars.shift(), bslBornBars.shift()
+            line.delete(bslLines.shift()), label.delete(bslLabels.shift())
+
+if barstate.isconfirmed and sslEnabled and not na(extPL)
+    merged = false
+    if sslPrices.size() > 0
+        for i = 0 to sslPrices.size() - 1
+            if sslStates.get(i) == 0 and math.abs(sslPrices.get(i) - extPL) <= eqTol
+                sslPrices.set(i, math.min(sslPrices.get(i), extPL)) // Equal Lows → یک سطح
+                merged := true
+    if not merged
+        sslPrices.push(extPL)
+        sslStates.push(0)
+        sslPendingBars.push(0)
+        sslBornBars.push(bar_index - extSwingLen)
+        sslLines.push(showLiquidityLevels ? line.new(bar_index - extSwingLen, extPL, bar_index, extPL, xloc.bar_index, extend.none, bullOrderBlockColor, line.style_dashed, 1) : line(na))
+        sslLabels.push(showLiquidityLevels ? label.new(bar_index, extPL, "SSL", xloc.bar_index, yloc.price, #00000000, label.style_label_left, structLabelColor, size.small) : label(na))
+        if sslPrices.size() > maxLiqLevels
+            sslPrices.shift(), sslStates.shift(), sslPendingBars.shift(), sslBornBars.shift()
+            line.delete(sslLines.shift()), label.delete(sslLabels.shift())
+
+// --- PDH / PDL به‌عنوان نقدینگی روزانه ---
+if barstate.isconfirmed and usePDH and newDay and not na(pdhVal)
+    bslPrices.push(pdhVal), bslStates.push(0), bslPendingBars.push(0), bslBornBars.push(bar_index)
+    bslLines.push(showLiquidityLevels ? line.new(bar_index, pdhVal, bar_index + 1, pdhVal, xloc.bar_index, extend.none, bearOrderBlockColor, line.style_dotted, 1) : line(na))
+    bslLabels.push(showLiquidityLevels ? label.new(bar_index + 1, pdhVal, "PDH", xloc.bar_index, yloc.price, #00000000, label.style_label_left, structLabelColor, size.small) : label(na))
+    if bslPrices.size() > maxLiqLevels
+        bslPrices.shift(), bslStates.shift(), bslPendingBars.shift(), bslBornBars.shift()
+        line.delete(bslLines.shift()), label.delete(bslLabels.shift())
+
+if barstate.isconfirmed and usePDL and newDay and not na(pdlVal)
+    sslPrices.push(pdlVal), sslStates.push(0), sslPendingBars.push(0), sslBornBars.push(bar_index)
+    sslLines.push(showLiquidityLevels ? line.new(bar_index, pdlVal, bar_index + 1, pdlVal, xloc.bar_index, extend.none, bullOrderBlockColor, line.style_dotted, 1) : line(na))
+    sslLabels.push(showLiquidityLevels ? label.new(bar_index + 1, pdlVal, "PDL", xloc.bar_index, yloc.price, #00000000, label.style_label_left, structLabelColor, size.small) : label(na))
+    if sslPrices.size() > maxLiqLevels
+        sslPrices.shift(), sslStates.shift(), sslPendingBars.shift(), sslBornBars.shift()
+        line.delete(sslLines.shift()), label.delete(sslLabels.shift())
+
+// --- پردازش سوییپ BSL: ویک بالای سطح + برگشت کلوز زیر آن = سوییپ؛ ادامه صعود = شکست (BOS)، نه سوییپ ---
+if barstate.isconfirmed and bslPrices.size() > 0
+    for i = bslPrices.size() - 1 to 0
+        lvl = bslPrices.get(i)
+        st = bslStates.get(i)
+        removeIt = false
+        swept = false
+
+        // سطح خیلی قدیمی حذف می‌شود
+        if bar_index - bslBornBars.get(i) > liqLookback
+            removeIt := true
+
+        if not removeIt and st == 0 and high > lvl
+            if close < lvl
+                swept := true
+                removeIt := true
+            else if sweepConfirmMode == "N-Bar Return"
+                bslStates.set(i, 1)
+                bslPendingBars.set(i, bar_index)
+            else
+                removeIt := true // کلوز قوی بالای سطح = شکست، سوییپ نیست
+
+        if not removeIt and bslStates.get(i) == 1
+            if close < lvl
+                swept := true
+                removeIt := true
+            else if bar_index - bslPendingBars.get(i) > sweepReturnWindow
+                removeIt := true // برنگشت → شکست
+
+        if not removeIt and bslStates.get(i) == 0 and showLiquidityLevels
+            line.set_x2(bslLines.get(i), bar_index)
+            label.set_x(bslLabels.get(i), bar_index)
+
+        if removeIt
+            oldLine = bslLines.get(i)
+            oldLabel = bslLabels.get(i)
+            if swept
+                lastBearSweepBar := bar_index
+                lastSweptBSL := lvl
+                if showLiquidityLevels
+                    line.set_x2(oldLine, bar_index)
+                    label.set_text(oldLabel, "BSL Sweep ✗")
+                    label.set_x(oldLabel, bar_index)
+                    pushLineCapped(sweptLines, oldLine, maxStructDrawings)
+                    pushLabelCapped(sweptLabels, oldLabel, maxStructDrawings)
+                else
+                    line.delete(oldLine), label.delete(oldLabel)
+            else
+                line.delete(oldLine), label.delete(oldLabel)
+            bslPrices.remove(i), bslStates.remove(i), bslPendingBars.remove(i), bslBornBars.remove(i)
+            bslLines.remove(i), bslLabels.remove(i)
+
+// --- پردازش سوییپ SSL ---
+if barstate.isconfirmed and sslPrices.size() > 0
+    for i = sslPrices.size() - 1 to 0
+        lvl = sslPrices.get(i)
+        st = sslStates.get(i)
+        removeIt = false
+        swept = false
+
+        if bar_index - sslBornBars.get(i) > liqLookback
+            removeIt := true
+
+        if not removeIt and st == 0 and low < lvl
+            if close > lvl
+                swept := true
+                removeIt := true
+            else if sweepConfirmMode == "N-Bar Return"
+                sslStates.set(i, 1)
+                sslPendingBars.set(i, bar_index)
+            else
+                removeIt := true
+
+        if not removeIt and sslStates.get(i) == 1
+            if close > lvl
+                swept := true
+                removeIt := true
+            else if bar_index - sslPendingBars.get(i) > sweepReturnWindow
+                removeIt := true
+
+        if not removeIt and sslStates.get(i) == 0 and showLiquidityLevels
+            line.set_x2(sslLines.get(i), bar_index)
+            label.set_x(sslLabels.get(i), bar_index)
+
+        if removeIt
+            oldLine = sslLines.get(i)
+            oldLabel = sslLabels.get(i)
+            if swept
+                lastBullSweepBar := bar_index
+                lastSweptSSL := lvl
+                if showLiquidityLevels
+                    line.set_x2(oldLine, bar_index)
+                    label.set_text(oldLabel, "SSL Sweep ✗")
+                    label.set_x(oldLabel, bar_index)
+                    pushLineCapped(sweptLines, oldLine, maxStructDrawings)
+                    pushLabelCapped(sweptLabels, oldLabel, maxStructDrawings)
+                else
+                    line.delete(oldLine), label.delete(oldLabel)
+            else
+                line.delete(oldLine), label.delete(oldLabel)
+            sslPrices.remove(i), sslStates.remove(i), sslPendingBars.remove(i), sslBornBars.remove(i)
+            sslLines.remove(i), sslLabels.remove(i)
+
+// --- به‌روزرسانی پیوت‌های ساختاری (سطوح نشکسته) ---
+if barstate.isconfirmed
+    if not na(intPH)
+        lastIntHigh := intPH, lastIntHighBar := bar_index - intSwingLen, intHighBroken := false
+    if not na(intPL)
+        lastIntLow := intPL, lastIntLowBar := bar_index - intSwingLen, intLowBroken := false
+    if not na(extPH)
+        lastExtHigh := extPH, lastExtHighBar := bar_index - extSwingLen, extHighBroken := false
+    if not na(extPL)
+        lastExtLow := extPL, lastExtLowBar := bar_index - extSwingLen, extLowBroken := false
+
+// --- ثبت دیسپلیسمنت ---
+if barstate.isconfirmed
+    if bullDisplacement
+        lastBullDispBar := bar_index
+    if bearDisplacement
+        lastBearDispBar := bar_index
+
+// --- ردیابی FVG و وضعیت پر شدن آن ---
+if barstate.isconfirmed
+    if bullFVGRaw
+        bullFVGTop := low, bullFVGBtm := high[2], lastBullFVGBar := bar_index, bullFVGFilled := false
+        if showFVGBoxes
+            pushBoxCapped(fvgBoxes, box.new(bar_index - 2, low, bar_index + 4, high[2], xloc = xloc.bar_index, border_color = #00000000, bgcolor = color.new(bullOrderBlockColor, 85), text = "FVG", text_color = structLabelColor, text_size = size.tiny, text_halign = text.align_right), maxStructDrawings)
+            if useFvgCE
+                pushLineCapped(fvgCELines, line.new(bar_index - 2, (low + high[2]) / 2, bar_index + 4, (low + high[2]) / 2, xloc.bar_index, extend.none, structLabelColor, line.style_dotted, 1), maxStructDrawings)
+    if bearFVGRaw
+        bearFVGTop := low[2], bearFVGBtm := high, lastBearFVGBar := bar_index, bearFVGFilled := false
+        if showFVGBoxes
+            pushBoxCapped(fvgBoxes, box.new(bar_index - 2, low[2], bar_index + 4, high, xloc = xloc.bar_index, border_color = #00000000, bgcolor = color.new(bearOrderBlockColor, 85), text = "FVG", text_color = structLabelColor, text_size = size.tiny, text_halign = text.align_right), maxStructDrawings)
+            if useFvgCE
+                pushLineCapped(fvgCELines, line.new(bar_index - 2, (low[2] + high) / 2, bar_index + 4, (low[2] + high) / 2, xloc.bar_index, extend.none, structLabelColor, line.style_dotted, 1), maxStructDrawings)
+    // FVG صعودی وقتی کامل پر می‌شود که قیمت به زیر کف گپ برسد
+    if not na(lastBullFVGBar) and not bullFVGFilled and low <= bullFVGBtm
+        bullFVGFilled := true
+    if not na(lastBearFVGBar) and not bearFVGFilled and high >= bearFVGTop
+        bearFVGFilled := true
+
+// --- ماشین حالت BOS / CHoCH ---
+// BOS = شکست در جهت ساختار؛ CHoCH/MSS = شکست خلاف جهت (ترجیحاً بعد از سوییپ)
+if barstate.isconfirmed
+    bullBreakSrc = bosConfirm == "Close" ? close : high
+    bearBreakSrc = bosConfirm == "Close" ? close : low
+    chochBullSrc = chochConfirm == "Close" ? close : high
+    chochBearSrc = chochConfirm == "Close" ? close : low
+
+    // --- شکست سقف خارجی (فقط سطح نشکسته) ---
+    extBullBreak = useExternalStructure and not extHighBroken and not na(lastExtHigh) and bullBreakSrc > lastExtHigh
+    if extBullBreak
+        extHighBroken := true
+        bosDispOK = not bosRequireDisp or (close > open and bosBodyOK)
+        if marketDir <= 0
+            // خلاف جهت → CHoCH (MSS)
+            sweepPre = not chochRequireSweep or (not na(lastBullSweepBar) and bar_index - lastBullSweepBar <= chochWindow)
+            dispPost = not chochRequireDisp or bullDisplacement or bullDisplacement[1]
+            if sweepPre and dispPost
+                marketDir := 1
+                lastBullChochBar := bar_index
+                if showStructure
+                    pushLineCapped(structLines, line.new(lastExtHighBar, lastExtHigh, bar_index, lastExtHigh, xloc.bar_index, extend.none, bullOrderBlockColor, line.style_solid, 1), maxStructDrawings)
+                    pushLabelCapped(structLabels, label.new(bar_index, lastExtHigh, "CHoCH (MSS)", xloc.bar_index, yloc.price, #00000000, label.style_label_down, structLabelColor, size.small), maxStructDrawings)
+        else if bosSwingType != "Internal" and bosDispOK
+            // در جهت ساختار → BOS
+            marketDir := 1
+            lastBullBOSBar := bar_index
+            if showStructure
+                pushLineCapped(structLines, line.new(lastExtHighBar, lastExtHigh, bar_index, lastExtHigh, xloc.bar_index, extend.none, bullOrderBlockColor, line.style_solid, 1), maxStructDrawings)
+                pushLabelCapped(structLabels, label.new(bar_index, lastExtHigh, "BOS", xloc.bar_index, yloc.price, #00000000, label.style_label_down, structLabelColor, size.small), maxStructDrawings)
+
+    // --- شکست کف خارجی ---
+    extBearBreak = useExternalStructure and not extLowBroken and not na(lastExtLow) and bearBreakSrc < lastExtLow
+    if extBearBreak
+        extLowBroken := true
+        bosDispOK = not bosRequireDisp or (close < open and bosBodyOK)
+        if marketDir >= 0
+            sweepPre = not chochRequireSweep or (not na(lastBearSweepBar) and bar_index - lastBearSweepBar <= chochWindow)
+            dispPost = not chochRequireDisp or bearDisplacement or bearDisplacement[1]
+            if sweepPre and dispPost
+                marketDir := -1
+                lastBearChochBar := bar_index
+                if showStructure
+                    pushLineCapped(structLines, line.new(lastExtLowBar, lastExtLow, bar_index, lastExtLow, xloc.bar_index, extend.none, bearOrderBlockColor, line.style_solid, 1), maxStructDrawings)
+                    pushLabelCapped(structLabels, label.new(bar_index, lastExtLow, "CHoCH (MSS)", xloc.bar_index, yloc.price, #00000000, label.style_label_up, structLabelColor, size.small), maxStructDrawings)
+        else if bosSwingType != "Internal" and bosDispOK
+            marketDir := -1
+            lastBearBOSBar := bar_index
+            if showStructure
+                pushLineCapped(structLines, line.new(lastExtLowBar, lastExtLow, bar_index, lastExtLow, xloc.bar_index, extend.none, bearOrderBlockColor, line.style_solid, 1), maxStructDrawings)
+                pushLabelCapped(structLabels, label.new(bar_index, lastExtLow, "BOS", xloc.bar_index, yloc.price, #00000000, label.style_label_up, structLabelColor, size.small), maxStructDrawings)
+
+    // --- شکست سقف داخلی: CHoCH داخلی (خلاف جهت) یا BOS داخلی (در جهت) ---
+    intBullBreak = useInternalStructure and not intHighBroken and not na(lastIntHigh) and chochBullSrc > lastIntHigh
+    if intBullBreak
+        intHighBroken := true
+        if marketDir <= 0
+            sweepPre = not chochRequireSweep or (not na(lastBullSweepBar) and bar_index - lastBullSweepBar <= chochWindow)
+            dispPost = not chochRequireDisp or bullDisplacement or bullDisplacement[1]
+            if sweepPre and dispPost
+                marketDir := 1
+                lastBullChochBar := bar_index
+                if showStructure
+                    pushLineCapped(structLines, line.new(lastIntHighBar, lastIntHigh, bar_index, lastIntHigh, xloc.bar_index, extend.none, bullOrderBlockColor, line.style_dashed, 1), maxStructDrawings)
+                    pushLabelCapped(structLabels, label.new(bar_index, lastIntHigh, "CHoCH", xloc.bar_index, yloc.price, #00000000, label.style_label_down, structLabelColor, size.small), maxStructDrawings)
+        else if bosSwingType != "External" and (not bosRequireDisp or (close > open and bosBodyOK))
+            lastBullBOSBar := bar_index
+
+    intBearBreak = useInternalStructure and not intLowBroken and not na(lastIntLow) and chochBearSrc < lastIntLow
+    if intBearBreak
+        intLowBroken := true
+        if marketDir >= 0
+            sweepPre = not chochRequireSweep or (not na(lastBearSweepBar) and bar_index - lastBearSweepBar <= chochWindow)
+            dispPost = not chochRequireDisp or bearDisplacement or bearDisplacement[1]
+            if sweepPre and dispPost
+                marketDir := -1
+                lastBearChochBar := bar_index
+                if showStructure
+                    pushLineCapped(structLines, line.new(lastIntLowBar, lastIntLow, bar_index, lastIntLow, xloc.bar_index, extend.none, bearOrderBlockColor, line.style_dashed, 1), maxStructDrawings)
+                    pushLabelCapped(structLabels, label.new(bar_index, lastIntLow, "CHoCH", xloc.bar_index, yloc.price, #00000000, label.style_label_up, structLabelColor, size.small), maxStructDrawings)
+        else if bosSwingType != "External" and (not bosRequireDisp or (close < open and bosBodyOK))
+            lastBearBOSBar := bar_index
+
+// --- دیلینگ رنج و اکوییلیبریم ---
+drHigh = pdSource == "External Swing" ? nz(lastExtHigh, rangeHigh) : pdSource == "Sweep Range" ? nz(lastSweptBSL, rangeHigh) : rangeHigh
+drLow = pdSource == "External Swing" ? nz(lastExtLow, rangeLow) : pdSource == "Sweep Range" ? nz(lastSweptSSL, rangeLow) : rangeLow
+equilibrium = math.avg(drHigh, drLow)
+
+var line eqLine = na
+var box premBox = na
+var box discBox = na
+if barstate.islast and showEquilibrium
+    line.delete(eqLine)
+    eqLine := line.new(bar_index - pdLookback, equilibrium, bar_index + 5, equilibrium, xloc.bar_index, extend.none, structLabelColor, line.style_dashed, 1)
+if barstate.islast and showPDBackground
+    box.delete(premBox), box.delete(discBox)
+    premBox := box.new(bar_index - pdLookback, drHigh, bar_index + 5, equilibrium, xloc = xloc.bar_index, border_color = #00000000, bgcolor = color.new(bearOrderBlockColor, 92))
+    discBox := box.new(bar_index - pdLookback, equilibrium, bar_index + 5, drLow, xloc = xloc.bar_index, border_color = #00000000, bgcolor = color.new(bullOrderBlockColor, 92))
+// ====================================================================================
+
+findOrderBlocks () =>
+    // سوینگ‌های موتور OB باید هر کندل محاسبه شوند
+    [top, btm] = findOBSwings(swingLength)
+    // فقط کندل تاییدشده → بدون ریپینت
+    if bar_index > last_bar_index - maxDistanceToLastBar and barstate.isconfirmed
+        max = useBodyOnly ? math.max(close, open) : high
+        min = useBodyOnly ? math.min(close, open) : low
+
+        // ================= مدیریت OB های صعودی =================
         if bullishOrderBlocksList.size() > 0
             for i = bullishOrderBlocksList.size() - 1 to 0
                 currentOB = bullishOrderBlocksList.get(i)
                 removed = false
 
-                // Invalidation: شکست کامل کف ناحیه
                 invBreak = (invalidationMethod == "Wick" ? low : math.min(open, close)) < currentOB.bottom
                 if invBreak
                     if deleteOnInvalidation
@@ -508,17 +825,15 @@ findOrderBlocks () =>
                     else
                         currentOB.weak := true
 
-                if not removed
-                    // Mean Threshold به عنوان فیلتر ضعف/ابطال
+                if not removed and meanMode != "Display Only"
                     if not na(currentOB.meanThreshold) and close < currentOB.meanThreshold
-                        if meanInvalidationFilter
+                        if meanMode == "Invalidate"
                             bullishOrderBlocksList.remove(i)
                             removed := true
-                        else if meanWeaknessFilter
+                        else
                             currentOB.weak := true
 
                 if not removed
-                    // Mitigation: رسیدن قیمت به ناحیه
                     mitTouch = (mitigationMethod == "Wick" ? low : math.min(open, close)) <= currentOB.top
                     if mitTouch
                         if not currentOB.inZone
@@ -527,28 +842,45 @@ findOrderBlocks () =>
                         if deleteOnMitigation or currentOB.mitigationCount > maxMitigations
                             bullishOrderBlocksList.remove(i)
                             removed := true
-                        else
+                        else if markMitigatedOB
                             currentOB.weak := true
                     else
                         currentOB.inZone := false
 
-        // ================= ساخت اوردر بلاک صعودی جدید با فیلترهای ICT =================
+        // ================= ساخت OB صعودی =================
         if close > top.y and not top.crossed
             top.crossed := true
 
-            // کاندیدا: پایین‌ترین کندل ناحیه مبدا قبل از حرکت (منطق ICT: آخرین کندل نزولی/پایین‌ترین کندل قبل از دیسپلیسمنت)
-            boxBtm = max[1]
-            boxTop = min[1]
-            boxLoc = time[1]
-            obCandleIdx = 1
+            // انتخاب کاندیدا بر اساس مود
+            extIdx = 1
+            extBtm = min[1]
+            extTop = max[1]
+            extLoc = time[1]
+            lastOppIdx = 0
+            searchLimit = math.min((bar_index - top.x) - 1, obSearchWindow)
 
-            for i = 1 to (bar_index - top.x) - 1
-                boxBtm := math.min(min[i], boxBtm)
-                boxTop := boxBtm == min[i] ? max[i] : boxTop
-                boxLoc := boxBtm == min[i] ? time[i] : boxLoc
-                obCandleIdx := boxBtm == min[i] ? i : obCandleIdx
+            for i = 1 to math.max((bar_index - top.x) - 1, 1)
+                extBtm := math.min(min[i], extBtm)
+                extTop := extBtm == min[i] ? max[i] : extTop
+                extLoc := extBtm == min[i] ? time[i] : extLoc
+                extIdx := extBtm == min[i] ? i : extIdx
 
-            // حجم فوت‌پرینت از کندل سازنده اوردر بلاک و دو کندل مجاور آن
+            for i = 1 to math.max(searchLimit, 1)
+                if lastOppIdx == 0 and close[i] < open[i]
+                    lastOppIdx := i
+
+            useIdx = extIdx
+            if obCandidateMode == "Last Opposite Candle" and lastOppIdx > 0
+                useIdx := lastOppIdx
+            if obCandidateMode == "Hybrid"
+                useIdx := close[extIdx] < open[extIdx] ? extIdx : (lastOppIdx > 0 ? lastOppIdx : extIdx)
+
+            boxTop = useIdx == extIdx ? extTop : max[useIdx]
+            boxBtm = useIdx == extIdx ? extBtm : min[useIdx]
+            boxLoc = useIdx == extIdx ? extLoc : time[useIdx]
+            obCandleIdx = useIdx
+
+            // حجم فوت‌پرینت از کندل مبدا و دو کندل مجاور (تخمینی — نه bid/ask واقعی)
             buyOBVolume = candleBuyVolume(obCandleIdx) + candleBuyVolume(obCandleIdx + 1) + candleBuyVolume(math.max(obCandleIdx - 1, 0))
             sellOBVolume = candleSellVolume(obCandleIdx) + candleSellVolume(obCandleIdx + 1) + candleSellVolume(math.max(obCandleIdx - 1, 0))
             totalOBVolume = buyOBVolume + sellOBVolume
@@ -556,45 +888,42 @@ findOrderBlocks () =>
             obSize = math.abs(boxTop - boxBtm)
             sizeOK = obSize > 0 and obSize <= atr * maxATRMult
 
-            // ---------- فیلترهای ICT ----------
-            // 1) Liquidity Sweep: قبل از OB صعودی باید نقدینگی فروش (کف اخیر) جمع شده باشد
-            sweepOK = bullSweepRecent
-            // 2) Displacement: حرکت صعودی قوی (کندل فعلی یا کندل قبل)
-            dispOK = bullDisplacement or bullDisplacement[1]
-            // 3) BOS/MSS: شکست سوینگ‌های معتبر (ذاتی این تشخیص؛ متد تایید قابل انتخاب)
-            bosOK = bosMethod == "Close" ? close > top.y : high > top.y
-            // 4) FVG: گپ ارزش منصفانه صعودی حاصل از دیسپلیسمنت (در چند کندل اخیر)
-            fvgOK = bullFVGRecent
-            // 5) Premium/Discount: OB صعودی ترجیحاً در ناحیه Discount (زیر 50% رنج معاملاتی)
-            insideDiscountPct = boxTop <= rangeMid ? 100.0 : boxBtm >= rangeMid ? 0.0 : (rangeMid - boxBtm) / math.max(boxTop - boxBtm, syminfo.mintick) * 100.0
+            // ---------- اعتبارسنجی توالی ICT ----------
+            sweepOK = not na(lastBullSweepBar) and bar_index - lastBullSweepBar <= chochWindow
+            chochOK = not na(lastBullChochBar) and bar_index - lastBullChochBar <= chochWindow
+            bosOK = not na(lastBullBOSBar) and bar_index - lastBullBOSBar <= chochWindow
+            dispOK = bullDisplacement or bullDisplacement[1] or (not na(lastBullDispBar) and bar_index - lastBullDispBar <= 3)
+            fvgOK = not na(lastBullFVGBar) and bar_index - lastBullFVGBar <= maxObFvgBars and not (fvgRequireUnfilled and bullFVGFilled)
+            insideDiscountPct = boxTop <= equilibrium ? 100.0 : boxBtm >= equilibrium ? 0.0 : (equilibrium - boxBtm) / math.max(boxTop - boxBtm, syminfo.mintick) * 100.0
             pdOK = insideDiscountPct >= pdMinInsidePct
-            // 8) Volume Absorption: حجم فروش بالا داخل ناحیه ولی قیمت پایین‌تر نرفته و دیسپلیسمنت صعودی آمده
             sellPct = totalOBVolume > 0 ? sellOBVolume / totalOBVolume * 100.0 : 0.0
-            absOK = totalOBVolume >= nz(volSMA) * absVolSMAMult and sellPct >= absMinOppPct
-            // ساختار/HTF: قیمت بالای میانگین رنج (هم‌جهتی با ساختار صعودی)
-            structOK = close > trendSMA
+            // جذب (Absorption): حجم فروش بالا داخل ناحیه ولی قیمت پایین‌تر نرفته و دیسپلیسمنت صعودی آمده
+            absOK = totalOBVolume >= nz(volSMA) * absVolSMAMult and sellPct >= absMinOppPct and dispOK
 
-            // ---------- امتیازدهی 0 تا 15 ----------
+            // ---------- امتیاز 0-15 ----------
             score = 0
-            score += structOK ? 2 : 0
             score += sweepOK ? 2 : 0
-            score += dispOK ? 2 : 0
+            score += chochOK ? 2 : 0
             score += bosOK ? 2 : 0
+            score += dispOK ? 2 : 0
             score += fvgOK ? 2 : 0
             score += pdOK ? 2 : 0
-            score += 1 // بدون میتیگیشن (تازه ساخته شده)
-            score += absOK ? 1 : 0
             score += sizeOK ? 1 : 0
+            score += 1 // بدون میتیگیشن
+            score += absOK ? 1 : 0
 
-            // ---------- گذر از فیلترهای فعال ----------
+            // ---------- گیت فیلترهای فعال ----------
             passed = sizeOK
             passed := passed and (not sweepEnabled or sweepOK)
+            structGate = (chochEnabled and chochOK) or (bosEnabled and bosOK)
+            passed := passed and (not requireCauseStructure or not (chochEnabled or bosEnabled) or structGate)
             passed := passed and (not dispEnabled or dispOK)
-            passed := passed and (not bosEnabled or bosOK)
             passed := passed and (not fvgEnabled or fvgOK)
             passed := passed and (not pdEnabled or pdOK)
             passed := passed and (not absEnabled or absOK)
-            passed := passed and score >= minScore
+
+            isWeakScore = score < minScore
+            passed := passed and (not hideBelowScore or not isWeakScore)
 
             if passed
                 newOrderBlockInfo = orderBlockInfo.new(boxTop, boxBtm, totalOBVolume, "Bull", boxLoc)
@@ -602,19 +931,19 @@ findOrderBlocks () =>
                 newOrderBlockInfo.obLowVolume := sellOBVolume
                 newOrderBlockInfo.meanThreshold := (boxTop + boxBtm) / 2
                 newOrderBlockInfo.score := score
-                newOrderBlockInfo.tags := buildTags(sweepOK, dispOK, bosOK, fvgOK, pdOK, absOK, true)
+                newOrderBlockInfo.weak := isWeakScore
+                newOrderBlockInfo.tags := buildTags(sweepOK, chochOK, bosOK, dispOK, fvgOK, pdOK, absOK, true)
 
                 bullishOrderBlocksList.unshift(newOrderBlockInfo)
                 if bullishOrderBlocksList.size() > maxOrderBlocks
                     bullishOrderBlocksList.pop()
 
-        // ================= مدیریت اوردر بلاک‌های نزولی (Mitigation / Invalidation) =================
+        // ================= مدیریت OB های نزولی =================
         if bearishOrderBlocksList.size() > 0
             for i = bearishOrderBlocksList.size() - 1 to 0
                 currentOB = bearishOrderBlocksList.get(i)
                 removed = false
 
-                // Invalidation: شکست کامل سقف ناحیه
                 invBreak = (invalidationMethod == "Wick" ? high : math.max(open, close)) > currentOB.top
                 if invBreak
                     if deleteOnInvalidation
@@ -623,16 +952,15 @@ findOrderBlocks () =>
                     else
                         currentOB.weak := true
 
-                if not removed
+                if not removed and meanMode != "Display Only"
                     if not na(currentOB.meanThreshold) and close > currentOB.meanThreshold
-                        if meanInvalidationFilter
+                        if meanMode == "Invalidate"
                             bearishOrderBlocksList.remove(i)
                             removed := true
-                        else if meanWeaknessFilter
+                        else
                             currentOB.weak := true
 
                 if not removed
-                    // Mitigation: رسیدن قیمت به ناحیه
                     mitTouch = (mitigationMethod == "Wick" ? high : math.max(open, close)) >= currentOB.bottom
                     if mitTouch
                         if not currentOB.inZone
@@ -641,26 +969,42 @@ findOrderBlocks () =>
                         if deleteOnMitigation or currentOB.mitigationCount > maxMitigations
                             bearishOrderBlocksList.remove(i)
                             removed := true
-                        else
+                        else if markMitigatedOB
                             currentOB.weak := true
                     else
                         currentOB.inZone := false
 
-        // ================= ساخت اوردر بلاک نزولی جدید با فیلترهای ICT =================
+        // ================= ساخت OB نزولی =================
         if close < btm.y and not btm.crossed
             btm.crossed := true
 
-            // کاندیدا: بالاترین کندل ناحیه مبدا قبل از حرکت نزولی
-            boxBtm = min[1]
-            boxTop = max[1]
-            boxLoc = time[1]
-            obCandleIdx = 1
+            extIdx = 1
+            extBtm = min[1]
+            extTop = max[1]
+            extLoc = time[1]
+            lastOppIdx = 0
+            searchLimit = math.min((bar_index - btm.x) - 1, obSearchWindow)
 
-            for i = 1 to (bar_index - btm.x) - 1
-                boxTop := math.max(max[i], boxTop)
-                boxBtm := boxTop == max[i] ? min[i] : boxBtm
-                boxLoc := boxTop == max[i] ? time[i] : boxLoc
-                obCandleIdx := boxTop == max[i] ? i : obCandleIdx
+            for i = 1 to math.max((bar_index - btm.x) - 1, 1)
+                extTop := math.max(max[i], extTop)
+                extBtm := extTop == max[i] ? min[i] : extBtm
+                extLoc := extTop == max[i] ? time[i] : extLoc
+                extIdx := extTop == max[i] ? i : extIdx
+
+            for i = 1 to math.max(searchLimit, 1)
+                if lastOppIdx == 0 and close[i] > open[i]
+                    lastOppIdx := i
+
+            useIdx = extIdx
+            if obCandidateMode == "Last Opposite Candle" and lastOppIdx > 0
+                useIdx := lastOppIdx
+            if obCandidateMode == "Hybrid"
+                useIdx := close[extIdx] > open[extIdx] ? extIdx : (lastOppIdx > 0 ? lastOppIdx : extIdx)
+
+            boxTop = useIdx == extIdx ? extTop : max[useIdx]
+            boxBtm = useIdx == extIdx ? extBtm : min[useIdx]
+            boxLoc = useIdx == extIdx ? extLoc : time[useIdx]
+            obCandleIdx = useIdx
 
             buyOBVolume = candleBuyVolume(obCandleIdx) + candleBuyVolume(obCandleIdx + 1) + candleBuyVolume(math.max(obCandleIdx - 1, 0))
             sellOBVolume = candleSellVolume(obCandleIdx) + candleSellVolume(obCandleIdx + 1) + candleSellVolume(math.max(obCandleIdx - 1, 0))
@@ -669,43 +1013,38 @@ findOrderBlocks () =>
             obSize = math.abs(boxTop - boxBtm)
             sizeOK = obSize > 0 and obSize <= atr * maxATRMult
 
-            // ---------- فیلترهای ICT ----------
-            // 1) Liquidity Sweep: قبل از OB نزولی باید نقدینگی خرید (سقف اخیر) جمع شده باشد
-            sweepOK = bearSweepRecent
-            // 2) Displacement نزولی
-            dispOK = bearDisplacement or bearDisplacement[1]
-            // 3) BOS/MSS
-            bosOK = bosMethod == "Close" ? close < btm.y : low < btm.y
-            // 4) FVG نزولی
-            fvgOK = bearFVGRecent
-            // 5) Premium: OB نزولی ترجیحاً بالای 50% رنج
-            insidePremiumPct = boxBtm >= rangeMid ? 100.0 : boxTop <= rangeMid ? 0.0 : (boxTop - rangeMid) / math.max(boxTop - boxBtm, syminfo.mintick) * 100.0
+            sweepOK = not na(lastBearSweepBar) and bar_index - lastBearSweepBar <= chochWindow
+            chochOK = not na(lastBearChochBar) and bar_index - lastBearChochBar <= chochWindow
+            bosOK = not na(lastBearBOSBar) and bar_index - lastBearBOSBar <= chochWindow
+            dispOK = bearDisplacement or bearDisplacement[1] or (not na(lastBearDispBar) and bar_index - lastBearDispBar <= 3)
+            fvgOK = not na(lastBearFVGBar) and bar_index - lastBearFVGBar <= maxObFvgBars and not (fvgRequireUnfilled and bearFVGFilled)
+            insidePremiumPct = boxBtm >= equilibrium ? 100.0 : boxTop <= equilibrium ? 0.0 : (boxTop - equilibrium) / math.max(boxTop - boxBtm, syminfo.mintick) * 100.0
             pdOK = insidePremiumPct >= pdMinInsidePct
-            // 8) Absorption: حجم خرید بالا داخل ناحیه ولی ادامه صعود شکست خورده
             buyPct = totalOBVolume > 0 ? buyOBVolume / totalOBVolume * 100.0 : 0.0
-            absOK = totalOBVolume >= nz(volSMA) * absVolSMAMult and buyPct >= absMinOppPct
-            structOK = close < trendSMA
+            absOK = totalOBVolume >= nz(volSMA) * absVolSMAMult and buyPct >= absMinOppPct and dispOK
 
-            // ---------- امتیازدهی 0 تا 15 ----------
             score = 0
-            score += structOK ? 2 : 0
             score += sweepOK ? 2 : 0
-            score += dispOK ? 2 : 0
+            score += chochOK ? 2 : 0
             score += bosOK ? 2 : 0
+            score += dispOK ? 2 : 0
             score += fvgOK ? 2 : 0
             score += pdOK ? 2 : 0
+            score += sizeOK ? 1 : 0
             score += 1
             score += absOK ? 1 : 0
-            score += sizeOK ? 1 : 0
 
             passed = sizeOK
             passed := passed and (not sweepEnabled or sweepOK)
+            structGate = (chochEnabled and chochOK) or (bosEnabled and bosOK)
+            passed := passed and (not requireCauseStructure or not (chochEnabled or bosEnabled) or structGate)
             passed := passed and (not dispEnabled or dispOK)
-            passed := passed and (not bosEnabled or bosOK)
             passed := passed and (not fvgEnabled or fvgOK)
             passed := passed and (not pdEnabled or pdOK)
             passed := passed and (not absEnabled or absOK)
-            passed := passed and score >= minScore
+
+            isWeakScore = score < minScore
+            passed := passed and (not hideBelowScore or not isWeakScore)
 
             if passed
                 newOrderBlockInfo = orderBlockInfo.new(boxTop, boxBtm, totalOBVolume, "Bear", boxLoc)
@@ -713,7 +1052,8 @@ findOrderBlocks () =>
                 newOrderBlockInfo.obLowVolume := sellOBVolume
                 newOrderBlockInfo.meanThreshold := (boxTop + boxBtm) / 2
                 newOrderBlockInfo.score := score
-                newOrderBlockInfo.tags := buildTags(sweepOK, dispOK, bosOK, fvgOK, pdOK, absOK, false)
+                newOrderBlockInfo.weak := isWeakScore
+                newOrderBlockInfo.tags := buildTags(sweepOK, chochOK, bosOK, dispOK, fvgOK, pdOK, absOK, false)
 
                 bearishOrderBlocksList.unshift(newOrderBlockInfo)
                 if bearishOrderBlocksList.size() > maxOrderBlocks
@@ -817,10 +1157,6 @@ handleTimeframeInfo (timeframeInfo timeframeInfoF, bullishOrderBlocksListF, bear
 
 
 handleOrderBlocksFinal () =>
-    if DEBUG
-        log.info("Bullish OB Count " + str.tostring(bullishOrderBlocksList.size()))
-        log.info("Bearish OB Count " + str.tostring(bearishOrderBlocksList.size()))
-
     if allOrderBlocksList.size () > 0
         for i = 0 to allOrderBlocksList.size() - 1
             safeDeleteOrderBlock(allOrderBlocksList.get(i))
@@ -850,28 +1186,6 @@ handleOrderBlocksFinal () =>
             curOB = allOrderBlocksList.get(i)
             if isOBValid(curOB.info)
                 renderOrderBlock(curOB)
-
-// ====================== رسم BOS / CHoCH (MSS) در اسکوپ سراسری ======================
-// نکته: رسم نباید داخل findOrderBlocks باشد چون خروجی آن به request.security پاس می‌شود.
-// این فراخوانی findOBSwings نمونه state جداگانه خودش را دارد و مستقل عمل می‌کند.
-[structTop, structBtm] = findOBSwings(swingLength)
-
-if barstate.isconfirmed and close > structTop.y and not structTop.crossed
-    structTop.crossed := true
-    if showStructure
-        bullIsChoch = structDirHolder.get(0) == -1
-        structDirHolder.set(0, 1)
-        pushLineCapped(structLines, line.new(structTop.x, structTop.y, bar_index, structTop.y, xloc.bar_index, extend.none, bullOrderBlockColor, line.style_solid, 1), maxStructDrawings)
-        pushLabelCapped(structLabels, label.new(bar_index, structTop.y, bullIsChoch ? "CHoCH (MSS)" : "BOS", xloc.bar_index, yloc.price, #00000000, label.style_label_down, structLabelColor, size.small), maxStructDrawings)
-
-if barstate.isconfirmed and close < structBtm.y and not structBtm.crossed
-    structBtm.crossed := true
-    if showStructure
-        bearIsChoch = structDirHolder.get(0) == 1
-        structDirHolder.set(0, -1)
-        pushLineCapped(structLines, line.new(structBtm.x, structBtm.y, bar_index, structBtm.y, xloc.bar_index, extend.none, bearOrderBlockColor, line.style_solid, 1), maxStructDrawings)
-        pushLabelCapped(structLabels, label.new(bar_index, structBtm.y, bearIsChoch ? "CHoCH (MSS)" : "BOS", xloc.bar_index, yloc.price, #00000000, label.style_label_up, structLabelColor, size.small), maxStructDrawings)
-// ====================================================================================
 
 findOrderBlocks()
 
