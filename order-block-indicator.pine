@@ -1139,14 +1139,11 @@ combineOBsFunc () =>
                         lastCombinations += 1
 
 
-reqSeq (timeframeStr) =>
-    [bullishOrderBlocksListF, bearishOrderBlocksListF] = request.security(syminfo.tickerid, timeframeStr, [bullishOrderBlocksList, bearishOrderBlocksList])
-    [bullishOrderBlocksListF, bearishOrderBlocksListF]
-
+// نکته: چون تایم‌فریم همیشه تایم‌فریم خود چارت است (timeframe1 = "")، نیازی به request.security نیست.
+// حذف security این امکان را می‌دهد که موتور نقدینگی/ساختار آزادانه خط و برچسب رسم کند.
 getTFData (timeframeInfo timeframeInfoF, timeframeStr) =>
     if not isTimeframeLower(timeframeInfoF.timeframeStr, timeframe.period) and timeframeInfoF.isEnabled
-        [bullishOrderBlocksListF, bearishOrderBlocksListF] = reqSeq(timeframeStr)
-        [bullishOrderBlocksListF, bearishOrderBlocksListF]
+        [bullishOrderBlocksList, bearishOrderBlocksList]
     else
         [na, na]
 
