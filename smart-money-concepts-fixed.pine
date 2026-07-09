@@ -43,6 +43,9 @@ SOLID                           = '⎯⎯⎯'
 DASHED                          = '----'
 DOTTED                          = '····'
 
+// text written on a box once price touches it
+INVALID_TEXT                    = 'نامعتبر'
+
 SMART_GROUP                     = 'Smart Money Concepts'
 INTERNAL_GROUP                  = 'Real Time Internal Structure'
 SWING_GROUP                     = 'Real Time Swing Structure'
@@ -71,7 +74,6 @@ equalHighsLowsThresholdTooltip  = 'Sensitivity threshold in a range (0, 1) used 
 showFairValueGapsTooltip        = 'Display fair values gaps on the chart'
 fairValueGapsThresholdTooltip   = 'Filter out non significant fair value gaps'
 fairValueGapsTimeframeTooltip   = 'Fair value gaps timeframe'
-fairValueGapsExtendTooltip      = 'Determine how many bars to extend the Fair Value Gap boxes on chart'
 showPremiumDiscountZonesTooltip = 'Display premium, discount, and equilibrium zones on chart'
 
 modeInput                       = input.string( HISTORICAL, 'Mode',                     group = SMART_GROUP,    tooltip = modeTooltip, options = [HISTORICAL, PRESENT])
@@ -96,9 +98,10 @@ showSwingsInput                 = input(        false,      'Show Swings Points'
 swingsLengthInput               = input.int(    50,         '',                         group = SWING_GROUP,    minval = 10,                inline = 'swings')
 showHighLowSwingsInput          = input(        true,       'Show Strong/Weak High/Low',group = SWING_GROUP,    tooltip = showHighLowSwingsTooltip)
 
+// CHANGE: order blocks, FVGs and premium/discount zones are now enabled by default
 showInternalOrderBlocksInput    = input(        true,       'Internal Order Blocks' ,   group = BLOCKS_GROUP,   tooltip = showInternalOrderBlocksTooltip,   inline = 'iob')
 internalOrderBlocksSizeInput    = input.int(    5,          '',                         group = BLOCKS_GROUP,   minval = 1, maxval = 20,                    inline = 'iob')
-showSwingOrderBlocksInput       = input(        false,      'Swing Order Blocks',       group = BLOCKS_GROUP,   tooltip = showSwingOrderBlocksTooltip,      inline = 'ob')
+showSwingOrderBlocksInput       = input(        true,       'Swing Order Blocks',       group = BLOCKS_GROUP,   tooltip = showSwingOrderBlocksTooltip,      inline = 'ob')
 swingOrderBlocksSizeInput       = input.int(    5,          '',                         group = BLOCKS_GROUP,   minval = 1, maxval = 20,                    inline = 'ob')
 orderBlockFilterInput           = input.string( 'Atr',      'Order Block Filter',       group = BLOCKS_GROUP,   tooltip = orderBlockFilterTooltip,          options = [ATR, RANGE])
 orderBlockMitigationInput       = input.string( HIGHLOW,    'Order Block Mitigation',   group = BLOCKS_GROUP,   tooltip = orderBlockMitigationTooltip,      options = [CLOSE,HIGHLOW])
@@ -113,12 +116,11 @@ equalHighsLowsLengthInput       = input.int(    3,          'Bars Confirmation',
 equalHighsLowsThresholdInput    = input.float(  0.1,        'Threshold',                group = EQUAL_GROUP,    tooltip = equalHighsLowsThresholdTooltip,   minval = 0, maxval = 0.5, step = 0.1)
 equalHighsLowsSizeInput         = input.string( TINY,       'Label Size',               group = EQUAL_GROUP,    options = [TINY,SMALL,NORMAL])
 
-showFairValueGapsInput          = input(        false,      'Fair Value Gaps',          group = GAPS_GROUP,     tooltip = showFairValueGapsTooltip)
+showFairValueGapsInput          = input(        true,       'Fair Value Gaps',          group = GAPS_GROUP,     tooltip = showFairValueGapsTooltip)
 fairValueGapsThresholdInput     = input(        true,       'Auto Threshold',           group = GAPS_GROUP,     tooltip = fairValueGapsThresholdTooltip)
 fairValueGapsTimeframeInput     = input.timeframe('',       'Timeframe',                group = GAPS_GROUP,     tooltip = fairValueGapsTimeframeTooltip)
 fairValueGapsBullColorInput     = input.color(color.new(#00ff68, 70), 'Bullish FVG' , group = GAPS_GROUP)
 fairValueGapsBearColorInput     = input.color(color.new(#ff0008, 70), 'Bearish FVG' , group = GAPS_GROUP)
-fairValueGapsExtendInput        = input.int(    1,          'Extend FVG',               group = GAPS_GROUP,     tooltip = fairValueGapsExtendTooltip,       minval = 0)
 
 showDailyLevelsInput            = input(        false,      'Daily',    group = LEVELS_GROUP,   inline = 'daily')
 dailyLevelsStyleInput           = input.string( SOLID,      '',         group = LEVELS_GROUP,   inline = 'daily',   options = [SOLID,DASHED,DOTTED])
@@ -130,7 +132,7 @@ showMonthlyLevelsInput          = input(        false,      'Monthly',   group =
 monthlyLevelsStyleInput         = input.string( SOLID,      '',         group = LEVELS_GROUP,   inline = 'monthly', options = [SOLID,DASHED,DOTTED])
 monthlyLevelsColorInput         = input(        BLUE,       '',         group = LEVELS_GROUP,   inline = 'monthly')
 
-showPremiumDiscountZonesInput   = input(        false,      'Premium/Discount Zones',   group = ZONES_GROUP , tooltip = showPremiumDiscountZonesTooltip)
+showPremiumDiscountZonesInput   = input(        true,       'Premium/Discount Zones',   group = ZONES_GROUP , tooltip = showPremiumDiscountZonesTooltip)
 premiumZoneColorInput           = input.color(  RED,        'Premium Zone',             group = ZONES_GROUP)
 equilibriumZoneColorInput       = input.color(  GRAY,       'Equilibrium Zone',         group = ZONES_GROUP)
 discountZoneColorInput          = input.color(  GREEN,      'Discount Zone',            group = ZONES_GROUP)
@@ -167,12 +169,14 @@ type trailingExtremes
     int lastBottomTime
 
 // @type                            UDT representing Fair Value Gaps
+// CHANGE: touched flag — a touched gap is frozen and marked invalid instead of deleted
 type fairValueGap
     float top
     float bottom
     int bias
     box topBox
     box bottomBox
+    bool touched    = false
 
 // @type                            UDT representing trend bias
 type trend
@@ -192,11 +196,15 @@ type pivot
     int barIndex    = bar_index
 
 // @type                            UDT representing an order block
+// CHANGE: each order block owns its box and a touched flag — a touched block is
+// frozen at the touch bar and marked invalid instead of deleted
 type orderBlock
     float barHigh
     float barLow
     int barTime
     int bias
+    bool touched    = false
+    box b_ox        = na
 
 var pivot swingHigh                 = pivot.new(na,na,false)
 var pivot swingLow                  = pivot.new(na,na,false)
@@ -213,16 +221,14 @@ var array<float> parsedHighs        = array.new<float>()
 var array<float> parsedLows         = array.new<float>()
 var array<float> highs              = array.new<float>()
 var array<float> lows               = array.new<float>()
-// FIX (ICT OB): raw opens/closes stored so the order block can be the last
-// opposite-close candle of the leg instead of just the price extreme
+// raw opens/closes stored so the order block can be the last opposite-close
+// candle of the leg instead of just the price extreme
 var array<float> opens              = array.new<float>()
 var array<float> closes             = array.new<float>()
 var array<int> times                = array.new<int>()
 var trailingExtremes trailing       = trailingExtremes.new()
 var array<orderBlock> swingOrderBlocks      = array.new<orderBlock>()
 var array<orderBlock> internalOrderBlocks   = array.new<orderBlock>()
-var array<box> swingOrderBlocksBoxes        = array.new<box>()
-var array<box> internalOrderBlocksBoxes     = array.new<box>()
 var swingBullishColor               = styleInput == MONOCHROME ? MONO_BULLISH : swingBullColorInput
 var swingBearishColor               = styleInput == MONOCHROME ? MONO_BEARISH : swingBearColorInput
 var fairValueGapBullishColor        = styleInput == MONOCHROME ? color.new(MONO_BULLISH,70) : fairValueGapsBullColorInput
@@ -233,15 +239,6 @@ varip int currentBarIndex           = bar_index
 varip int lastBarIndex              = bar_index
 alerts currentAlerts                = alerts.new()
 var initialTime                     = time
-
-// we create the needed boxes for displaying order blocks at the first execution
-if barstate.isfirst
-    if showSwingOrderBlocksInput
-        for index = 1 to swingOrderBlocksSizeInput
-            swingOrderBlocksBoxes.push(box.new(na,na,na,na,xloc = xloc.bar_time,extend = extend.right))
-    if showInternalOrderBlocksInput
-        for index = 1 to internalOrderBlocksSizeInput
-            internalOrderBlocksBoxes.push(box.new(na,na,na,na,xloc = xloc.bar_time,extend = extend.right))
 
 // @variable                        source to use in bearish order blocks mitigation
 bearishOrderBlockMitigationSource   = orderBlockMitigationInput == CLOSE ? close : high
@@ -271,7 +268,6 @@ times.push(time)
 //USER-DEFINED FUNCTIONS
 //---------------------------------------------------------------------------------------------------------------------{
 // @function            Get the value of the current leg, it can be 0 (bearish) or 1 (bullish)
-// @returns             int
 leg(int size) =>
     var leg     = 0
     newLegHigh  = high[size] > ta.highest( size)
@@ -385,39 +381,40 @@ drawStructure(pivot p_ivot, string tag, color structureColor, string lineStyle, 
     l_ine   := line.new(chart.point.new(p_ivot.barTime,na,p_ivot.currentLevel), chart.point.new(time,na,p_ivot.currentLevel), xloc.bar_time, color=structureColor, style=lineStyle)
     l_abel  := label.new(chart.point.new(na,math.round(0.5*(p_ivot.barIndex+bar_index)),p_ivot.currentLevel), tag, xloc.bar_index, color=color(na), textcolor=structureColor, style=labelStyle, size = labelSize)
 
-// @function            delete order blocks
-// FIX: iterate backwards — removing elements while iterating forward with
-// for..in skipped the element that followed every removed one
+// @function            check order block touches
+// CHANGE: a touched order block is no longer deleted — its box freezes at the
+// touch bar and gets the invalid tag. Touch means price entering the zone
+// (mitigation source reaching the near edge of the block)
 deleteOrderBlocks(bool internal = false) =>
     array<orderBlock> orderBlocks = internal ? internalOrderBlocks : swingOrderBlocks
 
-    if orderBlocks.size() > 0
-        for index = orderBlocks.size() - 1 to 0
-            orderBlock eachOrderBlock = orderBlocks.get(index)
+    for eachOrderBlock in orderBlocks
+        if not eachOrderBlock.touched
             bool crossedOderBlock = false
 
-            if bearishOrderBlockMitigationSource > eachOrderBlock.barHigh and eachOrderBlock.bias == BEARISH
+            if eachOrderBlock.bias == BEARISH and bearishOrderBlockMitigationSource >= eachOrderBlock.barLow
                 crossedOderBlock := true
                 if internal
                     currentAlerts.internalBearishOrderBlock := true
                 else
                     currentAlerts.swingBearishOrderBlock    := true
-            else if bullishOrderBlockMitigationSource < eachOrderBlock.barLow and eachOrderBlock.bias == BULLISH
+            else if eachOrderBlock.bias == BULLISH and bullishOrderBlockMitigationSource <= eachOrderBlock.barHigh
                 crossedOderBlock := true
                 if internal
                     currentAlerts.internalBullishOrderBlock := true
                 else
                     currentAlerts.swingBullishOrderBlock    := true
+
             if crossedOderBlock
-                orderBlocks.remove(index)
+                eachOrderBlock.touched := true
+                eachOrderBlock.b_ox.set_bottom_right_point(chart.point.new(time,na,eachOrderBlock.barLow))
+                eachOrderBlock.b_ox.set_text(INVALID_TEXT)
 
 // @function            fetch and store order blocks
-// FIX (ICT): the order block is now the last opposite-close candle of the leg
-// (last up-close candle before a bearish break, last down-close candle before
-// a bullish break) instead of only the highest/lowest bar of the range. The
-// price extreme is kept as fallback when no opposite candle exists in the leg.
-// FIX (ICT): optional displacement filter — the breaking candle must show a
-// body larger than the volatility measure for the block to be stored.
+// FIX (ICT): the order block is the last opposite-close candle of the leg with
+// the price extreme kept as fallback, plus an optional displacement filter.
+// CHANGE: each order block creates its own box immediately (right edge managed
+// in drawOrderBlocks); the number of live blocks is capped by the display input
 storeOrdeBlock(pivot p_ivot,bool internal = false,int bias) =>
     displacementOk = not orderBlockDisplacementInput or math.abs(close - open) >= volatilityMeasure
 
@@ -447,40 +444,49 @@ storeOrdeBlock(pivot p_ivot,bool internal = false,int bias) =>
                     bestLow     := parsedLows.get(index)
                     parsedIndex := index
 
-        orderBlock o_rderBlock          = orderBlock.new(parsedHighs.get(parsedIndex), parsedLows.get(parsedIndex), times.get(parsedIndex),bias)
-        array<orderBlock> orderBlocks   = internal ? internalOrderBlocks : swingOrderBlocks
+        orderBlockColor = styleInput == MONOCHROME ? (bias == BEARISH ? color.new(MONO_BEARISH,80) : color.new(MONO_BULLISH,80)) : internal ? (bias == BEARISH ? internalBearishOrderBlockColor : internalBullishOrderBlockColor) : (bias == BEARISH ? swingBearishOrderBlockColor : swingBullishOrderBlockColor)
 
-        if orderBlocks.size() >= 100
-            orderBlocks.pop()
+        box o_box = box.new(chart.point.new(times.get(parsedIndex),na,parsedHighs.get(parsedIndex)), chart.point.new(time,na,parsedLows.get(parsedIndex)), xloc = xloc.bar_time, border_color = internal ? na : orderBlockColor, bgcolor = orderBlockColor, text_color = GRAY, text_size = size.small)
+
+        orderBlock o_rderBlock          = orderBlock.new(parsedHighs.get(parsedIndex), parsedLows.get(parsedIndex), times.get(parsedIndex), bias, false, o_box)
+        array<orderBlock> orderBlocks   = internal ? internalOrderBlocks : swingOrderBlocks
         orderBlocks.unshift(o_rderBlock)
 
-// @function            draw order blocks as boxes
+        // cap the number of live (untouched) blocks by the display size input
+        maxOrderBlocks = internal ? internalOrderBlocksSizeInput : swingOrderBlocksSizeInput
+        int activeCount = 0
+        for eachOrderBlock in orderBlocks
+            if not eachOrderBlock.touched
+                activeCount += 1
+        if activeCount > maxOrderBlocks
+            for index = orderBlocks.size() - 1 to 0
+                orderBlock oldest = orderBlocks.get(index)
+                if not oldest.touched
+                    oldest.b_ox.delete()
+                    orderBlocks.remove(index)
+                    break
+
+        // cap the total stored blocks (touched ones included)
+        if orderBlocks.size() > 100
+            orderBlock last = orderBlocks.pop()
+            last.b_ox.delete()
+
+// @function            extend live order block boxes to the current candle
+// CHANGE: boxes no longer use extend.right — the right edge of every untouched
+// block follows the current (last) candle; touched blocks stay frozen
 drawOrderBlocks(bool internal = false) =>
     array<orderBlock> orderBlocks = internal ? internalOrderBlocks : swingOrderBlocks
-    orderBlocksSize = orderBlocks.size()
 
-    if orderBlocksSize > 0
-        maxOrderBlocks                      = internal ? internalOrderBlocksSizeInput : swingOrderBlocksSizeInput
-        array<orderBlock> parsedOrdeBlocks  = orderBlocks.slice(0, math.min(maxOrderBlocks,orderBlocksSize))
-        array<box> b_oxes                   = internal ? internalOrderBlocksBoxes : swingOrderBlocksBoxes
-
-        for [index,eachOrderBlock] in parsedOrdeBlocks
-            orderBlockColor = styleInput == MONOCHROME ? (eachOrderBlock.bias == BEARISH ? color.new(MONO_BEARISH,80) : color.new(MONO_BULLISH,80)) : internal ? (eachOrderBlock.bias == BEARISH ? internalBearishOrderBlockColor : internalBullishOrderBlockColor) : (eachOrderBlock.bias == BEARISH ? swingBearishOrderBlockColor : swingBullishOrderBlockColor)
-
-            box b_ox        = b_oxes.get(index)
-            b_ox.set_top_left_point(    chart.point.new(eachOrderBlock.barTime,na,eachOrderBlock.barHigh))
-            b_ox.set_bottom_right_point(chart.point.new(last_bar_time,na,eachOrderBlock.barLow))
-            b_ox.set_border_color(      internal ? na : orderBlockColor)
-            b_ox.set_bgcolor(           orderBlockColor)
+    for eachOrderBlock in orderBlocks
+        if not eachOrderBlock.touched
+            eachOrderBlock.b_ox.set_bottom_right_point(chart.point.new(last_bar_time,na,eachOrderBlock.barLow))
 
 // @function            detect and draw structures, also detect and store order blocks
 displayStructure(bool internal = false) =>
     var bullishBar = true
     var bearishBar = true
 
-    // FIX: original compared 'high - max(close,open)' with 'min(close, open - low)'
-    // — a nonsensical mix of a price and a range; the lower wick is
-    // 'min(close,open) - low'
+    // FIX: lower wick is 'min(close,open) - low'
     if internalFilterConfluenceInput
         bullishBar := high - math.max(close, open) > math.min(close, open) - low
         bearishBar := high - math.max(close, open) < math.min(close, open) - low
@@ -547,26 +553,35 @@ displayStructure(bool internal = false) =>
             storeOrdeBlock(p_ivot,internal,BEARISH)
 
 // @function            draw one fair value gap box (each fair value gap has two boxes)
-fairValueGapBox(leftTime,rightTime,topPrice,bottomPrice,boxColor) => box.new(chart.point.new(leftTime,na,topPrice),chart.point.new(rightTime + fairValueGapsExtendInput * (time-time[1]),na,bottomPrice), xloc=xloc.bar_time, border_color = boxColor, bgcolor = boxColor)
+// CHANGE: the right edge starts at the current bar and is extended each bar in
+// updateFairValueGaps until the gap is touched
+fairValueGapBox(leftTime,topPrice,bottomPrice,boxColor) => box.new(chart.point.new(leftTime,na,topPrice),chart.point.new(time,na,bottomPrice), xloc=xloc.bar_time, border_color = boxColor, bgcolor = boxColor, text_color = GRAY, text_size = size.small)
 
-// @function            delete fair value gaps
-// FIX: iterate backwards — same skipped-element bug as deleteOrderBlocks
+// @function            check fair value gap touches
+// CHANGE: a touched gap is frozen at the touch bar and tagged invalid instead
+// of being deleted. Touch means price entering the gap from its open side
 deleteFairValueGaps() =>
-    if fairValueGaps.size() > 0
-        for index = fairValueGaps.size() - 1 to 0
-            fairValueGap eachFairValueGap = fairValueGaps.get(index)
-            if (low < eachFairValueGap.bottom and eachFairValueGap.bias == BULLISH) or (high > eachFairValueGap.top and eachFairValueGap.bias == BEARISH)
-                eachFairValueGap.topBox.delete()
-                eachFairValueGap.bottomBox.delete()
-                fairValueGaps.remove(index)
+    for eachFairValueGap in fairValueGaps
+        if not eachFairValueGap.touched
+            if (low < eachFairValueGap.top and eachFairValueGap.bias == BULLISH) or (high > eachFairValueGap.top and eachFairValueGap.bias == BEARISH)
+                float mid = math.avg(eachFairValueGap.top, eachFairValueGap.bottom)
+                eachFairValueGap.touched := true
+                eachFairValueGap.topBox.set_bottom_right_point(   chart.point.new(time,na,mid))
+                eachFairValueGap.bottomBox.set_bottom_right_point(chart.point.new(time,na,eachFairValueGap.bottom))
+                eachFairValueGap.topBox.set_text(INVALID_TEXT)
+
+// @function            extend live fair value gap boxes to the current candle
+updateFairValueGaps() =>
+    for eachFairValueGap in fairValueGaps
+        if not eachFairValueGap.touched
+            float mid = math.avg(eachFairValueGap.top, eachFairValueGap.bottom)
+            eachFairValueGap.topBox.set_bottom_right_point(   chart.point.new(last_bar_time,na,mid))
+            eachFairValueGap.bottomBox.set_bottom_right_point(chart.point.new(last_bar_time,na,eachFairValueGap.bottom))
 
 // @function            draw fair value gaps
-// FIX (repaint): all higher-timeframe series are now confirmed bars (offset by
-// one extra bar) — mixing [0] offsets with lookahead_on repainted intrabar.
-// FIX (math): barDeltaPercent had misplaced parentheses, dividing by
-// (open*100) instead of multiplying the ratio by 100.
-// FIX (ICT): removed the extra 'lastClose beyond the gap' condition — the ICT
-// definition of an FVG only requires a gap between candle 1 and candle 3.
+// FIX (repaint): all higher-timeframe series are confirmed bars.
+// FIX (math): barDeltaPercent parentheses corrected.
+// FIX (ICT): pure 3-candle gap definition
 drawFairValueGaps() =>
     [lastClose, lastOpen, lastTime, currentHigh, currentLow, currentTime, last2High, last2Low] = request.security(syminfo.tickerid, fairValueGapsTimeframeInput, [close[2], open[2], time[2], high[1], low[1], time[1], high[3], low[3]],lookahead = barmerge.lookahead_on)
 
@@ -579,10 +594,16 @@ drawFairValueGaps() =>
 
     if bullishFairValueGap
         currentAlerts.bullishFairValueGap := true
-        fairValueGaps.unshift(fairValueGap.new(currentLow,last2High,BULLISH,fairValueGapBox(lastTime,currentTime,currentLow,math.avg(currentLow,last2High),fairValueGapBullishColor),fairValueGapBox(lastTime,currentTime,math.avg(currentLow,last2High),last2High,fairValueGapBullishColor)))
+        fairValueGaps.unshift(fairValueGap.new(currentLow,last2High,BULLISH,fairValueGapBox(lastTime,currentLow,math.avg(currentLow,last2High),fairValueGapBullishColor),fairValueGapBox(lastTime,math.avg(currentLow,last2High),last2High,fairValueGapBullishColor)))
     if bearishFairValueGap
         currentAlerts.bearishFairValueGap := true
-        fairValueGaps.unshift(fairValueGap.new(currentHigh,last2Low,BEARISH,fairValueGapBox(lastTime,currentTime,currentHigh,math.avg(currentHigh,last2Low),fairValueGapBearishColor),fairValueGapBox(lastTime,currentTime,math.avg(currentHigh,last2Low),last2Low,fairValueGapBearishColor)))
+        fairValueGaps.unshift(fairValueGap.new(currentHigh,last2Low,BEARISH,fairValueGapBox(lastTime,currentHigh,math.avg(currentHigh,last2Low),fairValueGapBearishColor),fairValueGapBox(lastTime,math.avg(currentHigh,last2Low),last2Low,fairValueGapBearishColor)))
+
+    // cap the total stored gaps
+    if fairValueGaps.size() > 100
+        fairValueGap last = fairValueGaps.pop()
+        last.topBox.delete()
+        last.bottomBox.delete()
 
 // @function            get line style from string
 getStyle(string style) =>
@@ -660,6 +681,7 @@ drawHighLowSwings() =>
     bottomLabel.set_text(       swingTrend.bias == BULLISH ? 'Strong Low' : 'Weak Low')
 
 // @function            draw a zone with a label and a box
+// note: zones always end at the current (last) candle
 drawZone(float labelLevel, int labelIndex, float top, float bottom, string tag, color zoneColor, string style) =>
     var label l_abel    = label.new(na,na,text = tag, color=color(na),textcolor = zoneColor, style = style, size = size.small)
     var box b_ox        = box.new(na,na,na,na,bgcolor = color.new(zoneColor,80),border_color = color(na), xloc = xloc.bar_time)
@@ -700,13 +722,11 @@ if showFairValueGapsInput
 getCurrentStructure(swingsLengthInput,false)
 getCurrentStructure(5,false,true)
 
-// FIX: called unconditionally (drawEqualHighLow is gated internally by the
-// input) so ta.* calls inside keep a consistent history
+// called unconditionally so ta.* calls inside keep a consistent history
 getCurrentStructure(equalHighsLowsLengthInput,true)
 
-// FIX: displayStructure is now called on every bar — the ta.crossover /
-// ta.crossunder calls inside require consistent execution; all display and
-// storage remain gated by the original inputs inside the function
+// displayStructure runs on every bar for consistent ta.* history — all display
+// and storage remain gated by the original inputs inside the function
 displayStructure(true)
 displayStructure()
 
@@ -726,6 +746,9 @@ if barstate.islastconfirmedhistory or barstate.islast
     if showSwingOrderBlocksInput
         drawOrderBlocks()
 
+    if showFairValueGapsInput
+        updateFairValueGaps()
+
 lastBarIndex    := currentBarIndex
 currentBarIndex := bar_index
 newBar          = currentBarIndex != lastBarIndex
@@ -743,7 +766,7 @@ if barstate.islastconfirmedhistory or (barstate.isrealtime and newBar)
 //---------------------------------------------------------------------------------------------------------------------}
 //ALERTS
 //---------------------------------------------------------------------------------------------------------------------{
-// FIX: alerts fire only on confirmed bars so realtime intrabar ticks cannot
+// alerts fire only on confirmed bars so realtime intrabar ticks cannot
 // trigger the same alert repeatedly or on signals that later repaint away
 confirmed = barstate.isconfirmed
 
@@ -752,16 +775,15 @@ alertcondition(currentAlerts.internalBullishCHoCH and confirmed,      'Internal 
 alertcondition(currentAlerts.internalBearishBOS and confirmed,        'Internal Bearish BOS',         'Internal Bearish BOS formed')
 alertcondition(currentAlerts.internalBearishCHoCH and confirmed,      'Internal Bearish CHoCH',       'Internal Bearish CHoCH formed')
 
-// FIX: swing BOS/CHoCH alert messages said 'Internal' in the original
 alertcondition(currentAlerts.swingBullishBOS and confirmed,           'Bullish BOS',                  'Bullish BOS formed')
 alertcondition(currentAlerts.swingBullishCHoCH and confirmed,         'Bullish CHoCH',                'Bullish CHoCH formed')
 alertcondition(currentAlerts.swingBearishBOS and confirmed,           'Bearish BOS',                  'Bearish BOS formed')
 alertcondition(currentAlerts.swingBearishCHoCH and confirmed,         'Bearish CHoCH',                'Bearish CHoCH formed')
 
-alertcondition(currentAlerts.internalBullishOrderBlock and confirmed, 'Bullish Internal OB Breakout', 'Price broke bullish internal OB')
-alertcondition(currentAlerts.internalBearishOrderBlock and confirmed, 'Bearish Internal OB Breakout', 'Price broke bearish internal OB')
-alertcondition(currentAlerts.swingBullishOrderBlock and confirmed,    'Bullish Swing OB Breakout',    'Price broke bullish swing OB')
-alertcondition(currentAlerts.swingBearishOrderBlock and confirmed,    'Bearish Swing OB Breakout',    'Price broke bearish swing OB')
+alertcondition(currentAlerts.internalBullishOrderBlock and confirmed, 'Bullish Internal OB Touch',    'Price touched bullish internal OB — invalid')
+alertcondition(currentAlerts.internalBearishOrderBlock and confirmed, 'Bearish Internal OB Touch',    'Price touched bearish internal OB — invalid')
+alertcondition(currentAlerts.swingBullishOrderBlock and confirmed,    'Bullish Swing OB Touch',       'Price touched bullish swing OB — invalid')
+alertcondition(currentAlerts.swingBearishOrderBlock and confirmed,    'Bearish Swing OB Touch',       'Price touched bearish swing OB — invalid')
 
 alertcondition(currentAlerts.equalHighs and confirmed,                'Equal Highs',                  'Equal highs detected')
 alertcondition(currentAlerts.equalLows and confirmed,                 'Equal Lows',                   'Equal lows detected')
